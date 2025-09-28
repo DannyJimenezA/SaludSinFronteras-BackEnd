@@ -1,0 +1,413 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model ActiveIngredients {
+  Id    BigInt  @id @default(autoincrement())
+  Name  String  @unique(map: "Name") @db.VarChar(160)
+  Drugs Drugs[]
+}
+
+model AppointmentNotes {
+  Id             BigInt         @id @default(autoincrement())
+  AppointmentId  BigInt
+  DoctorUserId   BigInt
+  Content        String         @db.LongText
+  CreatedAt      DateTime       @default(now())
+  Appointments   Appointments   @relation(fields: [AppointmentId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_An_Appt")
+  DoctorProfiles DoctorProfiles @relation(fields: [DoctorUserId], references: [UserId], onDelete: NoAction, onUpdate: NoAction, map: "FK_An_Doctor")
+
+  @@index([DoctorUserId], map: "FK_An_Doctor")
+  @@index([AppointmentId], map: "IX_AppointmentNotes_Appt")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model Appointments {
+  Id                                          BigInt                 @id @default(autoincrement())
+  PatientUserId                               BigInt
+  DoctorUserId                                BigInt
+  SlotId                                      BigInt?
+  Status                                      Appointments_Status
+  ScheduledAt                                 DateTime?
+  DurationMin                                 Int?
+  PriceCents                                  Int?
+  Currency                                    String?                @db.Char(3)
+  Modality                                    Appointments_Modality? @default(online)
+  SfuRoomId                                   String?                @db.VarChar(100)
+  CreatedByUserId                             BigInt?
+  CancelledByUserId                           BigInt?
+  CancelReason                                String?                @db.VarChar(255)
+  CreatedAt                                   DateTime               @default(now())
+  UpdatedAt                                   DateTime               @default(now())
+  AppointmentNotes                            AppointmentNotes[]
+  Users_Appointments_CancelledByUserIdToUsers Users?                 @relation("Appointments_CancelledByUserIdToUsers", fields: [CancelledByUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Appt_CancelledBy")
+  Users_Appointments_CreatedByUserIdToUsers   Users?                 @relation("Appointments_CreatedByUserIdToUsers", fields: [CreatedByUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Appt_Creator")
+  DoctorProfiles                              DoctorProfiles         @relation(fields: [DoctorUserId], references: [UserId], onDelete: NoAction, onUpdate: NoAction, map: "FK_Appt_Doctor")
+  Users_Appointments_PatientUserIdToUsers     Users                  @relation("Appointments_PatientUserIdToUsers", fields: [PatientUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Appt_Patient")
+  AvailabilitySlots                           AvailabilitySlots?     @relation(fields: [SlotId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Appt_Slot")
+  Conversations                               Conversations?
+  Payments                                    Payments?
+  VideoSessions                               VideoSessions?
+
+  @@index([CreatedByUserId], map: "FK_Appt_Creator")
+  @@index([DoctorUserId, ScheduledAt], map: "IX_Appointments_Doctor_Scheduled")
+  @@index([PatientUserId, ScheduledAt], map: "IX_Appointments_Patient_Scheduled")
+  @@index([SlotId], map: "IX_Appointments_Slot")
+  @@index([CancelledByUserId], map: "IX_Appt_CancelledBy")
+}
+
+model AuditLogs {
+  Id           BigInt   @id @default(autoincrement())
+  ActorUserId  BigInt
+  Action       String   @db.VarChar(60)
+  ResourceType String   @db.VarChar(60)
+  ResourceId   BigInt
+  Metadata     Json?
+  CreatedAt    DateTime @default(now())
+  Users        Users    @relation(fields: [ActorUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Audit_Actor")
+
+  @@index([ActorUserId, CreatedAt], map: "IX_Audit_Actor_Time")
+  @@index([ResourceType, ResourceId], map: "IX_Audit_Resource")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model AvailabilitySlots {
+  Id             BigInt         @id @default(autoincrement())
+  DoctorUserId   BigInt
+  StartAt        DateTime
+  EndAt          DateTime
+  IsRecurring    Boolean        @default(dbgenerated("b'0'")) @db.Bit(1)
+  RRule          String?        @db.LongText
+  CreatedAt      DateTime       @default(now())
+  UpdatedAt      DateTime       @default(now())
+  Appointments   Appointments[]
+  DoctorProfiles DoctorProfiles @relation(fields: [DoctorUserId], references: [UserId], onDelete: NoAction, onUpdate: NoAction, map: "FK_Availability_Doctor")
+
+  @@index([DoctorUserId, StartAt], map: "IX_Availability_Doctor_Start")
+}
+
+model ConsentLogs {
+  Id         BigInt           @id @default(autoincrement())
+  UserId     BigInt
+  Type       ConsentLogs_Type
+  Version    String           @db.VarChar(20)
+  Language   String           @db.VarChar(10)
+  AcceptedAt DateTime         @default(now())
+  Ip         String?          @db.VarChar(45)
+  UserAgent  String?          @db.VarChar(255)
+  Users      Users            @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Consent_User")
+
+  @@index([UserId, Type, AcceptedAt], map: "IX_Consent_User")
+}
+
+model ConversationParticipants {
+  ConversationId BigInt
+  UserId         BigInt
+  Conversations  Conversations @relation(fields: [ConversationId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_CP_Conv")
+  Users          Users         @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_CP_User")
+
+  @@id([ConversationId, UserId])
+  @@index([UserId], map: "IX_CP_User")
+}
+
+model Conversations {
+  Id                       BigInt                     @id @default(autoincrement())
+  AppointmentId            BigInt?                    @unique(map: "UQ_Conv_Appt")
+  CreatedBy                BigInt?
+  CreatedAt                DateTime                   @default(now())
+  ConversationParticipants ConversationParticipants[]
+  Appointments             Appointments?              @relation(fields: [AppointmentId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Conv_Appt")
+  Users                    Users?                     @relation(fields: [CreatedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Conv_Creator")
+  Messages                 Messages[]
+  TranscriptionSegments    TranscriptionSegments[]
+
+  @@index([AppointmentId], map: "IX_Conversations_Appt")
+  @@index([CreatedAt], map: "IX_Conversations_CreatedAt")
+  @@index([CreatedBy], map: "IX_Conversations_Creator")
+}
+
+model Countries {
+  Id              BigInt           @id @default(autoincrement())
+  Iso2            String           @unique(map: "Iso2") @db.Char(2)
+  Name            String           @db.VarChar(120)
+  Currency        String?          @db.Char(3)
+  RegulatoryNotes String?          @db.LongText
+  CountryDrugs    CountryDrugs[]
+  DoctorProfiles  DoctorProfiles[]
+  Users           Users[]
+}
+
+model CountryDrugs {
+  Id         BigInt    @id @default(autoincrement())
+  CountryId  BigInt
+  DrugId     BigInt
+  LocalBrand String?   @db.VarChar(160)
+  Otc        Boolean?  @db.Bit(1)
+  RxRequired Boolean?  @db.Bit(1)
+  Countries  Countries @relation(fields: [CountryId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_CD_Country")
+  Drugs      Drugs     @relation(fields: [DrugId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_CD_Drug")
+
+  @@unique([CountryId, DrugId], map: "UQ_CD")
+  @@index([CountryId], map: "IX_CD_Country")
+  @@index([DrugId], map: "IX_CD_Drug")
+}
+
+model DoctorProfileSpecialties {
+  DoctorUserId   BigInt
+  SpecialtyId    BigInt
+  DoctorProfiles DoctorProfiles @relation(fields: [DoctorUserId], references: [UserId], onDelete: NoAction, onUpdate: NoAction, map: "FK_DPS_Doctor")
+  Specialties    Specialties    @relation(fields: [SpecialtyId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_DPS_Specialty")
+
+  @@id([DoctorUserId, SpecialtyId])
+  @@index([SpecialtyId], map: "IX_DPS_Specialty")
+}
+
+model DoctorProfiles {
+  UserId                   BigInt                     @id
+  LicenseNumber            String                     @db.VarChar(100)
+  LicenseCountryId         BigInt
+  LicenseValidUntil        DateTime?                  @db.Date
+  VerificationStatus       String                     @default("pending") @db.VarChar(20)
+  MedicalSchool            String?                    @db.VarChar(160)
+  YearsExperience          Int?
+  Bio                      String?                    @db.LongText
+  CreatedAt                DateTime                   @default(now())
+  UpdatedAt                DateTime                   @default(now())
+  AppointmentNotes         AppointmentNotes[]
+  Appointments             Appointments[]
+  AvailabilitySlots        AvailabilitySlots[]
+  DoctorProfileSpecialties DoctorProfileSpecialties[]
+  Countries                Countries                  @relation(fields: [LicenseCountryId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_DoctorProfiles_Country")
+  Users                    Users                      @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_DoctorProfiles_User")
+
+  @@index([LicenseCountryId], map: "IX_DP_LicenseCountryId")
+}
+
+model Drugs {
+  Id                 BigInt            @id @default(autoincrement())
+  BrandName          String            @db.VarChar(160)
+  Form               String?           @db.VarChar(40)
+  Strength           String?           @db.VarChar(60)
+  ActiveIngredientId BigInt
+  CountryDrugs       CountryDrugs[]
+  ActiveIngredients  ActiveIngredients @relation(fields: [ActiveIngredientId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Drugs_Ingredient")
+
+  @@index([ActiveIngredientId], map: "IX_Drugs_Ingredient")
+}
+
+model Files {
+  Id          BigInt     @id @default(autoincrement())
+  OwnerUserId BigInt?
+  StorageUrl  String     @db.VarChar(512)
+  MimeType    String?    @db.VarChar(100)
+  SizeBytes   BigInt?
+  Checksum    String?    @db.VarChar(128)
+  CreatedAt   DateTime   @default(now())
+  Users       Users?     @relation(fields: [OwnerUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Files_Owner")
+  Messages    Messages[]
+
+  @@index([OwnerUserId], map: "IX_Files_Owner")
+}
+
+model MessageTranslations {
+  Id              BigInt   @id @default(autoincrement())
+  MessageId       BigInt
+  Language        String   @db.VarChar(10)
+  Content         String   @db.LongText
+  Engine          String?  @db.VarChar(60)
+  Confidence      Decimal? @db.Decimal(5, 3)
+  LatencyMs       Int?
+  IsAuto          Boolean  @default(dbgenerated("b'1'")) @db.Bit(1)
+  GlossaryApplied Boolean  @default(dbgenerated("b'0'")) @db.Bit(1)
+  CreatedAt       DateTime @default(now())
+  Messages        Messages @relation(fields: [MessageId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_MT_Message")
+
+  @@unique([MessageId, Language], map: "UQ_MT")
+}
+
+model Messages {
+  Id                  BigInt                @id @default(autoincrement())
+  ConversationId      BigInt
+  SenderUserId        BigInt
+  Type                String                @db.VarChar(20)
+  Content             String?               @db.LongText
+  Language            String?               @db.VarChar(10)
+  CreatedAt           DateTime              @default(now())
+  FileId              BigInt?
+  ReplyToMessageId    BigInt?
+  MessageTranslations MessageTranslations[]
+  Users               Users                 @relation(fields: [SenderUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Messages_User")
+  Conversations       Conversations         @relation(fields: [ConversationId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Msg_Conv")
+  Files               Files?                @relation(fields: [FileId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Msg_File")
+  Messages            Messages?             @relation("MessagesToMessages", fields: [ReplyToMessageId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Msg_ReplyTo")
+  other_Messages      Messages[]            @relation("MessagesToMessages")
+
+  @@index([SenderUserId], map: "FK_Messages_User")
+  @@index([ConversationId], map: "IX_Messages_Conv")
+  @@index([ConversationId, CreatedAt], map: "IX_Messages_Conv_Created")
+  @@index([FileId], map: "IX_Messages_File")
+  @@index([ReplyToMessageId], map: "IX_Msg_ReplyTo")
+}
+
+model Payments {
+  Id            BigInt          @id @default(autoincrement())
+  AppointmentId BigInt          @unique(map: "UQ_Pay_Appt")
+  AmountCents   Int
+  Currency      String          @db.Char(3)
+  Provider      String          @db.VarChar(40)
+  Status        Payments_Status @default(PENDING)
+  ProviderRef   String?         @db.VarChar(128)
+  CreatedAt     DateTime        @default(now())
+  UpdatedAt     DateTime        @default(now())
+  Appointments  Appointments    @relation(fields: [AppointmentId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Pay_Appt")
+  Refunds       Refunds[]
+}
+
+model Refunds {
+  Id          BigInt   @id @default(autoincrement())
+  PaymentId   BigInt
+  AmountCents Int
+  Reason      String?  @db.VarChar(255)
+  CreatedAt   DateTime @default(now())
+  Payments    Payments @relation(fields: [PaymentId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Refund_Payment")
+
+  @@index([PaymentId], map: "IX_Refund_Payment")
+}
+
+model Specialties {
+  Id                       BigInt                     @id @default(autoincrement())
+  Name                     String                     @unique(map: "Name") @db.VarChar(120)
+  DoctorProfileSpecialties DoctorProfileSpecialties[]
+}
+
+model TranscriptionSegments {
+  Id             BigInt        @id @default(autoincrement())
+  ConversationId BigInt
+  UserId         BigInt?
+  Language       String        @db.VarChar(10)
+  Text           String        @db.LongText
+  StartMs        Int
+  EndMs          Int
+  Engine         String?       @db.VarChar(60)
+  Confidence     Decimal?      @db.Decimal(5, 3)
+  CreatedAt      DateTime      @default(now())
+  Conversations  Conversations @relation(fields: [ConversationId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_TS_Conv")
+  Users          Users?        @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_TS_User")
+
+  @@index([UserId], map: "FK_TS_User")
+  @@index([ConversationId, StartMs], map: "IX_TS_Conv")
+}
+
+model UserLanguages {
+  UserId      BigInt
+  Language    String  @db.VarChar(20)
+  Proficiency String? @db.VarChar(20)
+  Users       Users   @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_UserLanguages_User")
+
+  @@id([UserId, Language])
+}
+
+model Users {
+  Id                                                 BigInt                     @id @default(autoincrement())
+  Role                                               String                     @db.VarChar(20)
+  Email                                              String                     @unique(map: "Email") @db.VarChar(255)
+  Phone                                              String?                    @db.VarChar(40)
+  FullName                                           String                     @db.VarChar(160)
+  DateOfBirth                                        DateTime?                  @db.Date
+  Gender                                             String?                    @db.VarChar(20)
+  PrimaryLanguage                                    String?                    @db.VarChar(10)
+  CountryId                                          BigInt?
+  Timezone                                           String?                    @db.VarChar(64)
+  Status                                             String                     @default("active") @db.VarChar(20)
+  CreatedAt                                          DateTime                   @default(now())
+  UpdatedAt                                          DateTime                   @default(now())
+  Appointments_Appointments_CancelledByUserIdToUsers Appointments[]             @relation("Appointments_CancelledByUserIdToUsers")
+  Appointments_Appointments_CreatedByUserIdToUsers   Appointments[]             @relation("Appointments_CreatedByUserIdToUsers")
+  Appointments_Appointments_PatientUserIdToUsers     Appointments[]             @relation("Appointments_PatientUserIdToUsers")
+  AuditLogs                                          AuditLogs[]
+  ConsentLogs                                        ConsentLogs[]
+  ConversationParticipants                           ConversationParticipants[]
+  Conversations                                      Conversations[]
+  DoctorProfiles                                     DoctorProfiles?
+  Files                                              Files[]
+  Messages                                           Messages[]
+  TranscriptionSegments                              TranscriptionSegments[]
+  UserLanguages                                      UserLanguages[]
+  Countries                                          Countries?                 @relation(fields: [CountryId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_Country")
+  UsersAuth                                          UsersAuth?
+  VideoSessionParticipants                           VideoSessionParticipants[]
+
+  @@index([CountryId], map: "IX_Users_CountryId")
+}
+
+model VideoSessionParticipants {
+  VideoSessionId BigInt
+  UserId         BigInt
+  Role           VideoSessionParticipants_Role
+  JoinAt         DateTime?
+  LeaveAt        DateTime?
+  Users          Users                         @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_VSP_User")
+  VideoSessions  VideoSessions                 @relation(fields: [VideoSessionId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_VSP_VS")
+
+  @@id([VideoSessionId, UserId])
+  @@index([UserId], map: "IX_VSP_User")
+}
+
+model VideoSessions {
+  Id                       BigInt                     @id @default(autoincrement())
+  AppointmentId            BigInt                     @unique(map: "UQ_VS_Appt")
+  Provider                 String                     @db.VarChar(40)
+  RoomId                   String                     @db.VarChar(128)
+  AccessStartAt            DateTime?
+  AccessEndAt              DateTime?
+  RecordingUrl             String?                    @db.VarChar(512)
+  CreatedAt                DateTime                   @default(now())
+  VideoSessionParticipants VideoSessionParticipants[]
+  Appointments             Appointments               @relation(fields: [AppointmentId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_VS_Appt")
+}
+
+model UsersAuth {
+  UserId       BigInt   @id
+  PasswordHash String   @db.VarChar(120)
+  CreatedAt    DateTime @default(now())
+  Users        Users    @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_UsersAuth_User")
+}
+
+enum ConsentLogs_Type {
+  privacy
+  telemedicine
+  recording
+}
+
+enum VideoSessionParticipants_Role {
+  doctor
+  patient
+  admin
+}
+
+enum Appointments_Status {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  RESCHEDULED
+  NO_SHOW
+}
+
+enum Payments_Status {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum Appointments_Modality {
+  online
+  in_person
+  hybrid
+}
