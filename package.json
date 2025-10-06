@@ -8,8 +8,8 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
+    "start": "node --max-old-space-size=512 node_modules/@nestjs/cli/bin/nest.js start",
+    "start:dev": "node --max-old-space-size=512 node_modules/@nestjs/cli/bin/nest.js start --watch",
     "prisma:pull": "prisma db pull && prisma generate",
     "prisma:studio": "prisma studio",
     "start:debug": "nest start --debug --watch",
