@@ -1,0 +1,16 @@
+{
+  "FirstName": "Andrey",
+  "LastName1": "Jimenez",
+  "LastName2": "Arrieta",
+  "Email": "anjiar10@gmail.com",
+  "Password": "Pass1234",
+  "PasswordConfirm": "Pass1234",
+  "Phone": "+506 6100-8407",
+  "IdentificationTypeId": 1,
+  "Identification": "504470462",
+  "GenderId": 1,
+  "DateOfBirth": "2003-01-27",
+  "NativeLanguageId": 1,
+  "NationalityId": 1,
+  "ResidenceCountryId": 1
+}

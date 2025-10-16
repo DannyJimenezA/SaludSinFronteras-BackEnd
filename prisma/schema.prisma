@@ -314,18 +314,32 @@ model UserLanguages {
 
 model Users {
   Id                                                 BigInt                     @id @default(autoincrement())
-  Role                                               String                     @db.VarChar(20)
-  Email                                              String                     @unique(map: "Email") @db.VarChar(255)
-  Phone                                              String?                    @db.VarChar(40)
-  FullName                                           String                     @db.VarChar(160)
+  IdentificationTypeId                               BigInt?
+  Identification                                     String?                    @db.VarChar(50)
+  FirstName                                          String?                    @db.VarChar(80)
+  LastName1                                          String?                    @db.VarChar(80)
+  LastName2                                          String?                    @db.VarChar(80)
+  GenderId                                           BigInt?
   DateOfBirth                                        DateTime?                  @db.Date
+  NativeLanguageId                                   BigInt?
+  Phone                                              String?                    @db.VarChar(40)
+  NationalityId                                      BigInt?
+  ResidenceCountryId                                 BigInt?
+  Email                                              String                     @unique(map: "Email") @db.VarChar(255)
+  IsActive                                           Boolean                    @default(false) @db.Bit(1)
+  Role                                               String                     @db.VarChar(20)
+  Timezone                                           String?                    @db.VarChar(64)
+  CreatedAt                                          DateTime                   @default(now())
+  UpdatedAt                                          DateTime                   @default(now())
+
+  // Deprecated fields (mantener por compatibilidad temporal)
+  FullName                                           String?                    @db.VarChar(160)
   Gender                                             String?                    @db.VarChar(20)
   PrimaryLanguage                                    String?                    @db.VarChar(10)
   CountryId                                          BigInt?
-  Timezone                                           String?                    @db.VarChar(64)
-  Status                                             String                     @default("active") @db.VarChar(20)
-  CreatedAt                                          DateTime                   @default(now())
-  UpdatedAt                                          DateTime                   @default(now())
+  Status                                             String?                    @default("active") @db.VarChar(20)
+
+  // Relaciones
   Appointments_Appointments_CancelledByUserIdToUsers Appointments[]             @relation("Appointments_CancelledByUserIdToUsers")
   Appointments_Appointments_CreatedByUserIdToUsers   Appointments[]             @relation("Appointments_CreatedByUserIdToUsers")
   Appointments_Appointments_PatientUserIdToUsers     Appointments[]             @relation("Appointments_PatientUserIdToUsers")
@@ -339,10 +353,20 @@ model Users {
   TranscriptionSegments                              TranscriptionSegments[]
   UserLanguages                                      UserLanguages[]
   Countries                                          Countries?                 @relation(fields: [CountryId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_Country")
+  IdentificationType                                 IdentificationTypes?       @relation(fields: [IdentificationTypeId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_IdentificationType")
+  GenderRelation                                     Genders?                   @relation(fields: [GenderId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_Gender")
+  NativeLanguage                                     NativeLanguages?           @relation(fields: [NativeLanguageId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_NativeLanguage")
+  Nationality                                        Nationalities?             @relation(fields: [NationalityId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_Nationality")
+  ResidenceCountry                                   ResidenceCountries?        @relation(fields: [ResidenceCountryId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_ResidenceCountry")
   UsersAuth                                          UsersAuth?
   VideoSessionParticipants                           VideoSessionParticipants[]
 
   @@index([CountryId], map: "IX_Users_CountryId")
+  @@index([IdentificationTypeId], map: "IX_Users_IdentificationTypeId")
+  @@index([GenderId], map: "IX_Users_GenderId")
+  @@index([NativeLanguageId], map: "IX_Users_NativeLanguageId")
+  @@index([NationalityId], map: "IX_Users_NationalityId")
+  @@index([ResidenceCountryId], map: "IX_Users_ResidenceCountryId")
 }
 
 model VideoSessionParticipants {
@@ -372,10 +396,49 @@ model VideoSessions {
 }
 
 model UsersAuth {
-  UserId       BigInt   @id
-  PasswordHash String   @db.VarChar(120)
-  CreatedAt    DateTime @default(now())
-  Users        Users    @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_UsersAuth_User")
+  UserId                BigInt    @id
+  PasswordHash          String    @db.VarChar(120)
+  CreatedAt             DateTime  @default(now())
+  EmailVerificationToken String?   @db.VarChar(255)
+  EmailVerifiedAt       DateTime?
+  PasswordResetToken    String?   @db.VarChar(255)
+  PasswordResetExpiry   DateTime?
+  Users                 Users     @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_UsersAuth_User")
+}
+
+model IdentificationTypes {
+  Id    BigInt @id @default(autoincrement())
+  Code  String @unique @db.VarChar(20)
+  Name  String @db.VarChar(100)
+  Users Users[]
+}
+
+model Genders {
+  Id    BigInt @id @default(autoincrement())
+  Code  String @unique @db.VarChar(20)
+  Name  String @db.VarChar(50)
+  Users Users[]
+}
+
+model NativeLanguages {
+  Id    BigInt @id @default(autoincrement())
+  Code  String @unique @db.VarChar(10)
+  Name  String @db.VarChar(100)
+  Users Users[]
+}
+
+model Nationalities {
+  Id    BigInt @id @default(autoincrement())
+  Code  String @unique @db.VarChar(10)
+  Name  String @db.VarChar(100)
+  Users Users[]
+}
+
+model ResidenceCountries {
+  Id    BigInt @id @default(autoincrement())
+  Code  String @unique @db.VarChar(10)
+  Name  String @db.VarChar(100)
+  Users Users[]
 }
 
 enum ConsentLogs_Type {
