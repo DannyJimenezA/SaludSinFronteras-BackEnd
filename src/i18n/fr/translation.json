@@ -1,0 +1,74 @@
+{
+  "auth": {
+    "invalid_credentials": "Identifiants invalides",
+    "email_already_exists": "L'adresse e-mail est déjà enregistrée",
+    "account_not_verified": "Compte non vérifié. Veuillez vérifier votre e-mail.",
+    "account_verified": "Compte activé avec succès. Vous pouvez maintenant vous connecter.",
+    "mfa_required": "Code d'authentification à deux facteurs requis",
+    "mfa_invalid": "Code d'authentification invalide",
+    "mfa_enabled": "Authentification à deux facteurs activée avec succès",
+    "mfa_disabled": "Authentification à deux facteurs désactivée",
+    "password_reset_sent": "Si l'e-mail existe, vous recevrez des instructions pour réinitialiser votre mot de passe.",
+    "password_reset_success": "Mot de passe mis à jour avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.",
+    "token_expired": "Le jeton a expiré",
+    "token_invalid": "Jeton invalide",
+    "unauthorized": "Non autorisé"
+  },
+  "common": {
+    "not_found": "Ressource non trouvée",
+    "forbidden": "Vous n'avez pas la permission d'effectuer cette action",
+    "internal_error": "Erreur interne du serveur",
+    "bad_request": "Demande invalide",
+    "success": "Opération réussie",
+    "created": "Ressource créée avec succès",
+    "updated": "Ressource mise à jour avec succès",
+    "deleted": "Ressource supprimée avec succès"
+  },
+  "medical_records": {
+    "created": "Dossier médical créé avec succès",
+    "updated": "Dossier médical mis à jour",
+    "deleted": "Dossier médical supprimé",
+    "forbidden_access": "Vous n'avez pas la permission de voir ce dossier médical",
+    "not_found": "Dossier médical non trouvé",
+    "only_doctor_can_create": "Seuls les médecins peuvent créer des dossiers médicaux",
+    "only_doctor_can_update": "Seul le médecin auteur peut mettre à jour ce dossier"
+  },
+  "appointments": {
+    "created": "Rendez-vous créé avec succès",
+    "updated": "Rendez-vous mis à jour",
+    "deleted": "Rendez-vous supprimé",
+    "not_found": "Rendez-vous non trouvé",
+    "slot_not_available": "Ce créneau horaire n'est plus disponible",
+    "forbidden": "Vous n'avez pas la permission d'accéder à ce rendez-vous"
+  },
+  "users": {
+    "not_found": "Utilisateur non trouvé",
+    "updated": "Profil mis à jour avec succès",
+    "forbidden": "Vous n'avez pas la permission de modifier cet utilisateur"
+  },
+  "doctors": {
+    "profile_created": "Profil de médecin créé avec succès",
+    "profile_updated": "Profil de médecin mis à jour",
+    "verification_pending": "Votre profil est en attente de vérification",
+    "verification_approved": "Profil de médecin approuvé",
+    "verification_rejected": "Profil de médecin rejeté"
+  },
+  "subscriptions": {
+    "created": "Abonnement créé avec succès",
+    "updated": "Abonnement mis à jour",
+    "cancelled": "Abonnement annulé",
+    "not_found": "Abonnement non trouvé",
+    "plan_not_found": "Plan non trouvé",
+    "already_subscribed": "Vous avez déjà un abonnement actif"
+  },
+  "validation": {
+    "is_email": "Doit être une adresse e-mail valide",
+    "is_string": "Doit être une chaîne de caractères",
+    "is_number": "Doit être un nombre",
+    "is_boolean": "Doit être vrai ou faux",
+    "min_length": "Doit contenir au moins {{min}} caractères",
+    "max_length": "Ne doit pas dépasser {{max}} caractères",
+    "is_not_empty": "Ce champ ne peut pas être vide",
+    "is_enum": "Doit être l'une des valeurs autorisées: {{values}}"
+  }
+}

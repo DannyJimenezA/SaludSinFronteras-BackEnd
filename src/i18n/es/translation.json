@@ -1,0 +1,74 @@
+{
+  "auth": {
+    "invalid_credentials": "Credenciales inválidas",
+    "email_already_exists": "El correo electrónico ya está registrado",
+    "account_not_verified": "Cuenta no verificada. Por favor revisa tu correo electrónico.",
+    "account_verified": "Cuenta activada exitosamente. Ya puedes iniciar sesión.",
+    "mfa_required": "Código de autenticación de dos factores requerido",
+    "mfa_invalid": "Código de autenticación inválido",
+    "mfa_enabled": "Autenticación de dos factores activada exitosamente",
+    "mfa_disabled": "Autenticación de dos factores deshabilitada",
+    "password_reset_sent": "Si el correo existe, recibirás instrucciones para restablecer tu contraseña.",
+    "password_reset_success": "Contraseña actualizada exitosamente. Ya puedes iniciar sesión con tu nueva contraseña.",
+    "token_expired": "El token ha expirado",
+    "token_invalid": "Token inválido",
+    "unauthorized": "No autorizado"
+  },
+  "common": {
+    "not_found": "Recurso no encontrado",
+    "forbidden": "No tienes permisos para realizar esta acción",
+    "internal_error": "Error interno del servidor",
+    "bad_request": "Solicitud inválida",
+    "success": "Operación exitosa",
+    "created": "Recurso creado exitosamente",
+    "updated": "Recurso actualizado exitosamente",
+    "deleted": "Recurso eliminado exitosamente"
+  },
+  "medical_records": {
+    "created": "Historial médico creado exitosamente",
+    "updated": "Historial médico actualizado",
+    "deleted": "Historial médico eliminado",
+    "forbidden_access": "No tienes permisos para ver este historial médico",
+    "not_found": "Historial médico no encontrado",
+    "only_doctor_can_create": "Solo los doctores pueden crear historiales médicos",
+    "only_doctor_can_update": "Solo el doctor autor puede actualizar este historial"
+  },
+  "appointments": {
+    "created": "Cita creada exitosamente",
+    "updated": "Cita actualizada",
+    "deleted": "Cita eliminada",
+    "not_found": "Cita no encontrada",
+    "slot_not_available": "Este horario ya no está disponible",
+    "forbidden": "No tienes permisos para acceder a esta cita"
+  },
+  "users": {
+    "not_found": "Usuario no encontrado",
+    "updated": "Perfil actualizado exitosamente",
+    "forbidden": "No tienes permisos para modificar este usuario"
+  },
+  "doctors": {
+    "profile_created": "Perfil de doctor creado exitosamente",
+    "profile_updated": "Perfil de doctor actualizado",
+    "verification_pending": "Tu perfil está pendiente de verificación",
+    "verification_approved": "Perfil de doctor aprobado",
+    "verification_rejected": "Perfil de doctor rechazado"
+  },
+  "subscriptions": {
+    "created": "Suscripción creada exitosamente",
+    "updated": "Suscripción actualizada",
+    "cancelled": "Suscripción cancelada",
+    "not_found": "Suscripción no encontrada",
+    "plan_not_found": "Plan no encontrado",
+    "already_subscribed": "Ya tienes una suscripción activa"
+  },
+  "validation": {
+    "is_email": "Debe ser un correo electrónico válido",
+    "is_string": "Debe ser una cadena de texto",
+    "is_number": "Debe ser un número",
+    "is_boolean": "Debe ser verdadero o falso",
+    "min_length": "Debe tener al menos {{min}} caracteres",
+    "max_length": "No debe exceder {{max}} caracteres",
+    "is_not_empty": "Este campo no puede estar vacío",
+    "is_enum": "Debe ser uno de los valores permitidos: {{values}}"
+  }
+}

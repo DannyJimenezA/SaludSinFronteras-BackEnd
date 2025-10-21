@@ -1,0 +1,74 @@
+{
+  "auth": {
+    "invalid_credentials": "Invalid credentials",
+    "email_already_exists": "Email address is already registered",
+    "account_not_verified": "Account not verified. Please check your email.",
+    "account_verified": "Account activated successfully. You can now log in.",
+    "mfa_required": "Two-factor authentication code required",
+    "mfa_invalid": "Invalid authentication code",
+    "mfa_enabled": "Two-factor authentication enabled successfully",
+    "mfa_disabled": "Two-factor authentication disabled",
+    "password_reset_sent": "If the email exists, you will receive password reset instructions.",
+    "password_reset_success": "Password updated successfully. You can now log in with your new password.",
+    "token_expired": "Token has expired",
+    "token_invalid": "Invalid token",
+    "unauthorized": "Unauthorized"
+  },
+  "common": {
+    "not_found": "Resource not found",
+    "forbidden": "You don't have permission to perform this action",
+    "internal_error": "Internal server error",
+    "bad_request": "Invalid request",
+    "success": "Operation successful",
+    "created": "Resource created successfully",
+    "updated": "Resource updated successfully",
+    "deleted": "Resource deleted successfully"
+  },
+  "medical_records": {
+    "created": "Medical record created successfully",
+    "updated": "Medical record updated",
+    "deleted": "Medical record deleted",
+    "forbidden_access": "You don't have permission to view this medical record",
+    "not_found": "Medical record not found",
+    "only_doctor_can_create": "Only doctors can create medical records",
+    "only_doctor_can_update": "Only the author doctor can update this record"
+  },
+  "appointments": {
+    "created": "Appointment created successfully",
+    "updated": "Appointment updated",
+    "deleted": "Appointment deleted",
+    "not_found": "Appointment not found",
+    "slot_not_available": "This time slot is no longer available",
+    "forbidden": "You don't have permission to access this appointment"
+  },
+  "users": {
+    "not_found": "User not found",
+    "updated": "Profile updated successfully",
+    "forbidden": "You don't have permission to modify this user"
+  },
+  "doctors": {
+    "profile_created": "Doctor profile created successfully",
+    "profile_updated": "Doctor profile updated",
+    "verification_pending": "Your profile is pending verification",
+    "verification_approved": "Doctor profile approved",
+    "verification_rejected": "Doctor profile rejected"
+  },
+  "subscriptions": {
+    "created": "Subscription created successfully",
+    "updated": "Subscription updated",
+    "cancelled": "Subscription cancelled",
+    "not_found": "Subscription not found",
+    "plan_not_found": "Plan not found",
+    "already_subscribed": "You already have an active subscription"
+  },
+  "validation": {
+    "is_email": "Must be a valid email address",
+    "is_string": "Must be a string",
+    "is_number": "Must be a number",
+    "is_boolean": "Must be true or false",
+    "min_length": "Must be at least {{min}} characters",
+    "max_length": "Must not exceed {{max}} characters",
+    "is_not_empty": "This field cannot be empty",
+    "is_enum": "Must be one of the allowed values: {{values}}"
+  }
+}

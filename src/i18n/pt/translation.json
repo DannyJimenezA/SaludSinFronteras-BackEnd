@@ -1,0 +1,74 @@
+{
+  "auth": {
+    "invalid_credentials": "Credenciais inválidas",
+    "email_already_exists": "O endereço de e-mail já está registrado",
+    "account_not_verified": "Conta não verificada. Por favor, verifique seu e-mail.",
+    "account_verified": "Conta ativada com sucesso. Você já pode fazer login.",
+    "mfa_required": "Código de autenticação de dois fatores necessário",
+    "mfa_invalid": "Código de autenticação inválido",
+    "mfa_enabled": "Autenticação de dois fatores ativada com sucesso",
+    "mfa_disabled": "Autenticação de dois fatores desativada",
+    "password_reset_sent": "Se o e-mail existir, você receberá instruções para redefinir sua senha.",
+    "password_reset_success": "Senha atualizada com sucesso. Você já pode fazer login com sua nova senha.",
+    "token_expired": "O token expirou",
+    "token_invalid": "Token inválido",
+    "unauthorized": "Não autorizado"
+  },
+  "common": {
+    "not_found": "Recurso não encontrado",
+    "forbidden": "Você não tem permissão para realizar esta ação",
+    "internal_error": "Erro interno do servidor",
+    "bad_request": "Solicitação inválida",
+    "success": "Operação bem-sucedida",
+    "created": "Recurso criado com sucesso",
+    "updated": "Recurso atualizado com sucesso",
+    "deleted": "Recurso excluído com sucesso"
+  },
+  "medical_records": {
+    "created": "Prontuário médico criado com sucesso",
+    "updated": "Prontuário médico atualizado",
+    "deleted": "Prontuário médico excluído",
+    "forbidden_access": "Você não tem permissão para visualizar este prontuário médico",
+    "not_found": "Prontuário médico não encontrado",
+    "only_doctor_can_create": "Apenas médicos podem criar prontuários médicos",
+    "only_doctor_can_update": "Apenas o médico autor pode atualizar este prontuário"
+  },
+  "appointments": {
+    "created": "Consulta criada com sucesso",
+    "updated": "Consulta atualizada",
+    "deleted": "Consulta excluída",
+    "not_found": "Consulta não encontrada",
+    "slot_not_available": "Este horário não está mais disponível",
+    "forbidden": "Você não tem permissão para acessar esta consulta"
+  },
+  "users": {
+    "not_found": "Usuário não encontrado",
+    "updated": "Perfil atualizado com sucesso",
+    "forbidden": "Você não tem permissão para modificar este usuário"
+  },
+  "doctors": {
+    "profile_created": "Perfil de médico criado com sucesso",
+    "profile_updated": "Perfil de médico atualizado",
+    "verification_pending": "Seu perfil está pendente de verificação",
+    "verification_approved": "Perfil de médico aprovado",
+    "verification_rejected": "Perfil de médico rejeitado"
+  },
+  "subscriptions": {
+    "created": "Assinatura criada com sucesso",
+    "updated": "Assinatura atualizada",
+    "cancelled": "Assinatura cancelada",
+    "not_found": "Assinatura não encontrada",
+    "plan_not_found": "Plano não encontrado",
+    "already_subscribed": "Você já possui uma assinatura ativa"
+  },
+  "validation": {
+    "is_email": "Deve ser um endereço de e-mail válido",
+    "is_string": "Deve ser uma string",
+    "is_number": "Deve ser um número",
+    "is_boolean": "Deve ser verdadeiro ou falso",
+    "min_length": "Deve ter pelo menos {{min}} caracteres",
+    "max_length": "Não deve exceder {{max}} caracteres",
+    "is_not_empty": "Este campo não pode estar vazio",
+    "is_enum": "Deve ser um dos valores permitidos: {{values}}"
+  }
+}

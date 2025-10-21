@@ -53,6 +53,7 @@ model Appointments {
   Conversations                               Conversations?
   Payments                                    Payments?
   VideoSessions                               VideoSessions?
+  MedicalRecords                              MedicalRecords[]
 
   @@index([CreatedByUserId], map: "FK_Appt_Creator")
   @@index([DoctorUserId, ScheduledAt], map: "IX_Appointments_Doctor_Scheduled")
@@ -361,6 +362,13 @@ model Users {
   UsersAuth                                          UsersAuth?
   VideoSessionParticipants                           VideoSessionParticipants[]
 
+  // 🆕 Nuevas relaciones (Fase 1)
+  MedicalRecords_Patient                             MedicalRecords[]           @relation("MedicalRecords_Patient")
+  MedicalRecords_Doctor                              MedicalRecords[]           @relation("MedicalRecords_Doctor")
+  Subscription                                       Subscriptions?
+  MfaSettings                                        UsersMfa?
+  DataAccessLogs                                     DataAccessLogs[]
+
   @@index([CountryId], map: "IX_Users_CountryId")
   @@index([IdentificationTypeId], map: "IX_Users_IdentificationTypeId")
   @@index([GenderId], map: "IX_Users_GenderId")
@@ -439,6 +447,92 @@ model ResidenceCountries {
   Code  String @unique @db.VarChar(10)
   Name  String @db.VarChar(100)
   Users Users[]
+}
+
+// 🆕 NUEVAS TABLAS PARA FASE 1
+
+// Tabla de Historiales Médicos (con cifrado)
+model MedicalRecords {
+  Id                 BigInt        @id @default(autoincrement())
+  PatientUserId      BigInt
+  DoctorUserId       BigInt
+  AppointmentId      BigInt?
+  DiagnosisEnc       String        @db.LongText
+  PrescriptionsEnc   String?       @db.LongText
+  RecommendationsEnc String?       @db.LongText
+  FilesJson          Json?
+  EncryptionIV       String        @db.VarChar(32)
+  CreatedAt          DateTime      @default(now())
+  UpdatedAt          DateTime      @default(now())
+
+  Patient            Users         @relation("MedicalRecords_Patient", fields: [PatientUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_MR_Patient")
+  Doctor             Users         @relation("MedicalRecords_Doctor", fields: [DoctorUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_MR_Doctor")
+  Appointment        Appointments? @relation(fields: [AppointmentId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_MR_Appointment")
+
+  @@index([PatientUserId], map: "IX_MR_Patient")
+  @@index([DoctorUserId], map: "IX_MR_Doctor")
+  @@index([AppointmentId], map: "IX_MR_Appointment")
+}
+
+// Tabla de Planes de Suscripción
+model Plans {
+  Id              BigInt          @id @default(autoincrement())
+  Name            String          @unique @db.VarChar(100)
+  PriceCents      Int
+  Currency        String          @default("USD") @db.Char(3)
+  FeaturesJson    Json
+  MaxAppointments Int?
+  IsActive        Boolean         @default(true) @db.Bit(1)
+  CreatedAt       DateTime        @default(now())
+
+  Subscriptions   Subscriptions[]
+}
+
+// Tabla de Suscripciones de Usuarios
+model Subscriptions {
+  Id         BigInt   @id @default(autoincrement())
+  UserId     BigInt   @unique
+  PlanId     BigInt
+  StartAt    DateTime @default(now())
+  ExpiresAt  DateTime?
+  IsActive   Boolean  @default(true) @db.Bit(1)
+  AutoRenew  Boolean  @default(false) @db.Bit(1)
+  CreatedAt  DateTime @default(now())
+  UpdatedAt  DateTime @default(now())
+
+  User       Users    @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Sub_User")
+  Plan       Plans    @relation(fields: [PlanId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Sub_Plan")
+
+  @@index([UserId], map: "IX_Sub_User")
+  @@index([PlanId], map: "IX_Sub_Plan")
+}
+
+// Tabla de MFA (Autenticación Multi-Factor)
+model UsersMfa {
+  UserId      BigInt    @id
+  Secret      String    @db.VarChar(255)
+  IsEnabled   Boolean   @default(false) @db.Bit(1)
+  BackupCodes Json?
+  EnabledAt   DateTime?
+
+  User        Users     @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_UsersMfa_User")
+}
+
+// Tabla de Logs de Acceso a Datos (Auditoría HIPAA/GDPR)
+model DataAccessLogs {
+  Id           BigInt   @id @default(autoincrement())
+  UserId       BigInt
+  ResourceType String   @db.VarChar(60)
+  ResourceId   BigInt
+  Action       String   @db.VarChar(40)
+  IpAddress    String?  @db.VarChar(45)
+  UserAgent    String?  @db.VarChar(255)
+  CreatedAt    DateTime @default(now())
+
+  User         Users    @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_DAL_User")
+
+  @@index([UserId, CreatedAt], map: "IX_DAL_User_Time")
+  @@index([ResourceType, ResourceId], map: "IX_DAL_Resource")
 }
 
 enum ConsentLogs_Type {
