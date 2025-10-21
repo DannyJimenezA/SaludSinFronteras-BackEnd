@@ -11,7 +11,7 @@ export class MailService {
 
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Activa tu cuenta - TeleMed',
+      subject: 'Activa tu cuenta - Salud Sin Fronteras',
       html: `
         <!DOCTYPE html>
         <html>
@@ -28,11 +28,11 @@ export class MailService {
         <body>
           <div class="container">
             <div class="header">
-              <h1>Bienvenido a TeleMed</h1>
+              <h1>Bienvenido a Salud Sin Fronteras</h1>
             </div>
             <div class="content">
               <h2>Hola ${firstName},</h2>
-              <p>Gracias por registrarte en TeleMed. Para activar tu cuenta, haz clic en el siguiente botón:</p>
+              <p>Gracias por registrarte en Salud Sin Fronteras. Para activar tu cuenta, haz clic en el siguiente botón:</p>
               <div style="text-align: center;">
                 <a href="${verificationUrl}" class="button">Activar Cuenta</a>
               </div>
@@ -42,7 +42,7 @@ export class MailService {
             </div>
             <div class="footer">
               <p>Si no solicitaste esta cuenta, puedes ignorar este correo.</p>
-              <p>&copy; 2025 TeleMed. Todos los derechos reservados.</p>
+              <p>&copy; 2025 Salud Sin Fronteras. Todos los derechos reservados.</p>
             </div>
           </div>
         </body>
@@ -56,7 +56,7 @@ export class MailService {
 
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Recuperación de Contraseña - TeleMed',
+      subject: 'Recuperación de Contraseña - Salud Sin Fronteras',
       html: `
         <!DOCTYPE html>
         <html>
@@ -78,7 +78,7 @@ export class MailService {
             </div>
             <div class="content">
               <h2>Hola ${firstName},</h2>
-              <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en TeleMed.</p>
+              <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en Salud Sin Fronteras.</p>
               <div style="text-align: center;">
                 <a href="${resetUrl}" class="button">Restablecer Contraseña</a>
               </div>
@@ -91,7 +91,7 @@ export class MailService {
             </div>
             <div class="footer">
               <p>Por tu seguridad, nunca compartas este enlace con nadie.</p>
-              <p>&copy; 2025 TeleMed. Todos los derechos reservados.</p>
+              <p>&copy; 2025 Salud Sin Fronteras. Todos los derechos reservados.</p>
             </div>
           </div>
         </body>
@@ -103,7 +103,7 @@ export class MailService {
   async sendWelcomeEmail(email: string, firstName: string) {
     await this.mailerService.sendMail({
       to: email,
-      subject: '¡Cuenta Activada! - TeleMed',
+      subject: '¡Cuenta Activada! - Salud Sin Fronteras',
       html: `
         <!DOCTYPE html>
         <html>
@@ -131,7 +131,7 @@ export class MailService {
               <p>Estamos emocionados de tenerte con nosotros. Si tienes alguna pregunta, no dudes en contactarnos.</p>
             </div>
             <div class="footer">
-              <p>&copy; 2025 TeleMed. Todos los derechos reservados.</p>
+              <p>&copy; 2025 Salud Sin Fronteras. Todos los derechos reservados.</p>
             </div>
           </div>
         </body>

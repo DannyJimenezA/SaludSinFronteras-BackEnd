@@ -16,7 +16,7 @@ import { MailService } from './mail.service';
         },
       },
       defaults: {
-        from: `"TeleMed" <${process.env.MAIL_FROM}>`,
+        from: `"Salud Sin Fronteras" <${process.env.MAIL_FROM}>`,
       },
     }),
   ],

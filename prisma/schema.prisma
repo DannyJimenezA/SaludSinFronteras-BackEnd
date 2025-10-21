@@ -325,7 +325,7 @@ model UserLanguages {
 model Users {
   Id                                                 BigInt                     @id @default(autoincrement())
   IdentificationTypeId                               BigInt?
-  Identification                                     String?                    @db.VarChar(50)
+  Identification                                     String?                    @unique(map: "UQ_Users_Identification") @db.VarChar(50)
   FirstName                                          String?                    @db.VarChar(80)
   LastName1                                          String?                    @db.VarChar(80)
   LastName2                                          String?                    @db.VarChar(80)

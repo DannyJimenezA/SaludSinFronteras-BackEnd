@@ -19,6 +19,16 @@ export class AuthService {
     const exists = await this.prisma.users.findUnique({ where: { Email: dto.Email } });
     if (exists) throw new BadRequestException('Email ya registrado');
 
+    // 🆕 Validar que la cédula no esté duplicada
+    if (dto.Identification) {
+      const identificationExists = await this.prisma.users.findUnique({
+        where: { Identification: dto.Identification },
+      });
+      if (identificationExists) {
+        throw new BadRequestException('La cédula ya está registrada');
+      }
+    }
+
     // Validar que las contraseñas coincidan
     if (dto.Password !== dto.PasswordConfirm) {
       throw new BadRequestException('Las contraseñas no coinciden');

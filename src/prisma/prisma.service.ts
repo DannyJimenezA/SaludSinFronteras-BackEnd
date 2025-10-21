@@ -6,6 +6,9 @@ import { PrismaClient } from '@prisma/client';
 export class PrismaService extends PrismaClient implements OnModuleInit {
   async onModuleInit() {
     await this.$connect();
+
+    // Configurar zona horaria de MySQL a Costa Rica (UTC-6)
+    await this.$executeRawUnsafe(`SET time_zone = '-06:00'`);
   }
 
   async enableShutdownHooks(app: INestApplication) {
