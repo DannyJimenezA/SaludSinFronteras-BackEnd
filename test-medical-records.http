@@ -1,0 +1,233 @@
+### ============================================
+### PRUEBAS DEL MÓDULO MEDICAL RECORDS - FASE 2
+### ============================================
+###
+### Requisitos:
+### 1. Servidor ejecutándose en http://localhost:3000
+### 2. Tener tokens JWT de:
+###    - Un DOCTOR (para crear historiales)
+###    - Un PATIENT (para leer sus historiales)
+###    - Un ADMIN (para operaciones administrativas)
+###
+### Variables a configurar:
+@baseUrl = http://localhost:3000
+@doctorToken = TU_DOCTOR_JWT_TOKEN_AQUI
+@patientToken = TU_PATIENT_JWT_TOKEN_AQUI
+@adminToken = TU_ADMIN_JWT_TOKEN_AQUI
+@patientId = 1
+@recordId = 1
+
+### ============================================
+### 1. CREAR HISTORIAL MÉDICO (DOCTOR)
+### ============================================
+### Descripción:
+### - Solo doctores pueden crear historiales
+### - Los campos Diagnosis, Prescriptions, Recommendations son CIFRADOS con AES-256
+### - Se genera un IV aleatorio único
+### - Se registra en DataAccessLogs (auditoría)
+###
+POST {{baseUrl}}/medical-records
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "PatientUserId": {{patientId}},
+  "Diagnosis": "Hipertensión arterial estadio 1 controlada con tratamiento farmacológico. Diabetes mellitus tipo 2 con control glucémico adecuado.",
+  "Prescriptions": "Losartán 50mg vía oral cada 12 horas por 30 días.\nMetformina 850mg vía oral cada 8 horas con alimentos por 30 días.\nAtorvastatin 20mg vía oral cada noche antes de dormir.",
+  "Recommendations": "Dieta DASH baja en sodio (menos de 2g/día).\nEjercicio cardiovascular moderado 30 minutos diarios.\nControl de presión arterial en casa 2 veces al día.\nControl glucémico en ayunas semanalmente.\nEvitar consumo de alcohol y tabaco.\nConsulta de seguimiento en 15 días.",
+  "Files": [
+    "/uploads/medical-records/electrocardiograma-2025-10-20.pdf",
+    "/uploads/medical-records/hemograma-completo.pdf"
+  ]
+}
+
+###
+### Respuesta esperada:
+### - Status: 201 Created
+### - Campos descifrados automáticamente
+### - Se registra en DataAccessLogs con Action='CREATE'
+###
+
+### ============================================
+### 2. OBTENER HISTORIALES DE UN PACIENTE
+### ============================================
+### Descripción:
+### - Retorna todos los historiales del paciente
+### - Los campos son DESCIFRADOS automáticamente antes de retornar
+### - Se registra cada acceso en DataAccessLogs con Action='READ'
+###
+GET {{baseUrl}}/medical-records/patient/{{patientId}}
+Authorization: Bearer {{doctorToken}}
+
+###
+### Respuesta esperada:
+### - Status: 200 OK
+### - Array de historiales con campos descifrados
+### - Incluye información del doctor y cita (si aplica)
+###
+
+### ============================================
+### 3. OBTENER UN HISTORIAL POR ID
+### ============================================
+### Descripción:
+### - Retorna un historial específico
+### - Descifrado automático
+### - Control de permisos (solo ADMIN, doctor autor, o paciente)
+###
+GET {{baseUrl}}/medical-records/{{recordId}}
+Authorization: Bearer {{patientToken}}
+
+###
+### Respuesta esperada:
+### - Status: 200 OK
+### - Historial descifrado
+### - Si no tienes permiso: 403 Forbidden
+###
+
+### ============================================
+### 4. ACTUALIZAR HISTORIAL (DOCTOR)
+### ============================================
+### Descripción:
+### - Solo el doctor autor puede actualizar
+### - Los campos se RE-CIFRAN con un NUEVO IV
+### - Se registra en auditoría con Action='UPDATE'
+###
+PATCH {{baseUrl}}/medical-records/{{recordId}}
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "Diagnosis": "Hipertensión arterial estadio 2. Requiere ajuste de dosis de antihipertensivos.",
+  "Prescriptions": "Losartán 100mg vía oral cada 12 horas por 30 días.\nHidroclorotiazida 12.5mg vía oral cada 24 horas.\nMetformina 1000mg vía oral cada 8 horas con alimentos.",
+  "Recommendations": "Dieta DASH estricta.\nReducir ingesta de sal a menos de 1.5g/día.\nControl de presión arterial en casa 3 veces al día.\nConsulta con nutricionista.\nSeguimiento en 7 días."
+}
+
+###
+### Respuesta esperada:
+### - Status: 200 OK
+### - Historial actualizado con nuevos valores descifrados
+### - UpdatedAt actualizado
+###
+
+### ============================================
+### 5. ELIMINAR HISTORIAL (ADMIN O DOCTOR AUTOR)
+### ============================================
+### Descripción:
+### - Solo ADMIN o el doctor autor pueden eliminar
+### - Se registra en auditoría con Action='DELETE'
+### - Operación IRREVERSIBLE
+###
+DELETE {{baseUrl}}/medical-records/{{recordId}}
+Authorization: Bearer {{adminToken}}
+
+###
+### Respuesta esperada:
+### - Status: 200 OK
+### - { "message": "Historial médico eliminado exitosamente", "id": "1" }
+###
+
+### ============================================
+### 6. INTENTAR CREAR SIN PERMISO (PATIENT)
+### ============================================
+### Descripción:
+### - Los pacientes NO pueden crear historiales
+### - Debe retornar 403 Forbidden
+###
+POST {{baseUrl}}/medical-records
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "PatientUserId": {{patientId}},
+  "Diagnosis": "Test sin permiso"
+}
+
+###
+### Respuesta esperada:
+### - Status: 403 Forbidden
+### - { "message": "Forbidden resource" }
+###
+
+### ============================================
+### 7. INTENTAR VER HISTORIAL DE OTRO PACIENTE
+### ============================================
+### Descripción:
+### - Un paciente NO puede ver historiales de otros pacientes
+### - Debe retornar 403 Forbidden
+###
+GET {{baseUrl}}/medical-records/patient/999
+Authorization: Bearer {{patientToken}}
+
+###
+### Respuesta esperada:
+### - Status: 403 Forbidden
+### - { "message": "No puedes acceder a historiales de otros pacientes" }
+###
+
+### ============================================
+### PRUEBAS DE CIFRADO
+### ============================================
+
+### TEST 1: Verificar que los campos están cifrados en BD
+### Descripción:
+### - Conectarse a MySQL y ejecutar:
+###   SELECT DiagnosisEnc, EncryptionIV FROM MedicalRecords WHERE Id = 1;
+### - DiagnosisEnc debe ser un string hexadecimal incomprensible
+### - EncryptionIV debe ser un string de 32 caracteres hex
+
+### TEST 2: Verificar que el descifrado funciona
+### - Hacer GET /medical-records/1
+### - El campo Diagnosis debe ser texto legible
+### - Comparar con el texto original enviado en POST
+
+### TEST 3: Verificar que cada registro tiene IV único
+### - Crear 2 historiales con el mismo Diagnosis
+### - Verificar en BD que DiagnosisEnc y EncryptionIV son diferentes
+
+### ============================================
+### PRUEBAS DE AUDITORÍA
+### ============================================
+
+### TEST 1: Verificar logs en DataAccessLogs
+### - Conectarse a MySQL y ejecutar:
+###   SELECT * FROM DataAccessLogs WHERE ResourceType = 'MedicalRecord' ORDER BY CreatedAt DESC LIMIT 10;
+### - Debe haber registros con:
+###   - Action: 'CREATE', 'READ', 'UPDATE', 'DELETE'
+###   - UserId: ID del usuario que hizo la acción
+###   - ResourceId: ID del historial
+###   - IpAddress: IP del cliente
+###   - UserAgent: Navegador/cliente
+
+### TEST 2: Verificar que cada endpoint registra auditoría
+### - POST /medical-records → Action='CREATE'
+### - GET /medical-records/:id → Action='READ'
+### - PATCH /medical-records/:id → Action='UPDATE'
+### - DELETE /medical-records/:id → Action='DELETE'
+
+### ============================================
+### NOTAS IMPORTANTES
+### ============================================
+###
+### 1. CIFRADO:
+###    - Algoritmo: AES-256-CBC
+###    - IV: Aleatorio de 16 bytes (32 hex chars)
+###    - Clave: Configurada en ENCRYPTION_SECRET (.env)
+###    - Campos cifrados: Diagnosis, Prescriptions, Recommendations
+###
+### 2. AUDITORÍA:
+###    - Todos los accesos se registran en DataAccessLogs
+###    - Incluye IP y User Agent
+###    - Cumplimiento básico HIPAA/GDPR
+###
+### 3. PERMISOS:
+###    - CREAR: Solo DOCTOR
+###    - LEER: ADMIN (todos), DOCTOR (todos), PATIENT (solo los suyos)
+###    - ACTUALIZAR: Solo el doctor autor
+###    - ELIMINAR: ADMIN o doctor autor
+###
+### 4. VALIDACIONES:
+###    - Diagnosis: Mínimo 10 caracteres
+###    - Files: Máximo 10 archivos
+###    - PatientUserId: Debe existir en Users
+###    - AppointmentId: Debe existir y pertenecer al doctor (opcional)
+###

@@ -24,6 +24,9 @@ import { MailModule } from './mail/mail.module';
 import { CommonModule } from './common/common.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 
+// 🆕 Importaciones de Fase 2
+import { MedicalRecordsModule } from './medical-records/medical-records.module';
+
 @Module({
   imports: [
     // Archivos estáticos
@@ -72,6 +75,9 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
     MessagesModule,
     TranslationModule,
     VideoModule,
+
+    // 🆕 Módulos de Fase 2
+    MedicalRecordsModule,
   ],
   controllers: [AppController],
   providers: [
