@@ -1,0 +1,251 @@
+###
+# Test File - Subscriptions Module
+# Archivo de prueba para el módulo de suscripciones
+#
+# IMPORTANTE: Ejecutar en orden para que las pruebas funcionen correctamente
+###
+
+@baseUrl = http://localhost:3000
+@adminToken = YOUR_ADMIN_JWT_TOKEN_HERE
+@patientToken = YOUR_PATIENT_JWT_TOKEN_HERE
+
+###
+# 1. SEED DE PLANES (Solo ejecutar una vez) 🌱
+# Crea los 3 planes básicos: Basic, Professional, Premium
+###
+POST {{baseUrl}}/plans/seed
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+# Respuesta esperada:
+# {
+#   "message": "3 planes creados/verificados exitosamente",
+#   "plans": [...]
+# }
+
+###
+# 2. LISTAR TODOS LOS PLANES 📋
+# Endpoint público (solo requiere autenticación)
+###
+GET {{baseUrl}}/plans
+Authorization: Bearer {{patientToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "Id": "1",
+#     "Name": "Basic",
+#     "PriceCents": 0,
+#     "Currency": "USD",
+#     "FormattedPrice": "Gratis",
+#     "FeaturesJson": ["5 consultas médicas por mes", ...],
+#     "MaxAppointments": 5
+#   },
+#   {
+#     "Name": "Professional",
+#     "PriceCents": 2999,
+#     "FormattedPrice": "$29.99 USD/mes",
+#     ...
+#   },
+#   {
+#     "Name": "Premium",
+#     "PriceCents": 9999,
+#     "FormattedPrice": "$99.99 USD/mes",
+#     "MaxAppointments": null
+#   }
+# ]
+
+###
+# 3. VER MI SUSCRIPCIÓN ACTIVA 👤
+# Si no tienes suscripción, se asigna automáticamente el plan Basic
+###
+GET {{baseUrl}}/subscriptions/me
+Authorization: Bearer {{patientToken}}
+
+# Respuesta esperada (primera vez):
+# {
+#   "Id": "1",
+#   "UserId": "5",
+#   "PlanId": "1",
+#   "StartAt": "2025-10-20T10:00:00Z",
+#   "ExpiresAt": null,  // Plan gratuito no expira
+#   "IsActive": true,
+#   "AutoRenew": false,
+#   "Plan": {
+#     "Name": "Basic",
+#     "PriceCents": 0,
+#     "MaxAppointments": 5
+#   }
+# }
+
+###
+# 4. SIMULAR CHECKOUT - PLAN PROFESSIONAL 💳
+# IMPORTANTE: Este endpoint NO cobra dinero real, es una simulación
+###
+POST {{baseUrl}}/subscriptions/checkout
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "PlanId": 2,
+  "DurationMonths": 1
+}
+
+# Respuesta esperada:
+# {
+#   "Id": "2",
+#   "UserId": "5",
+#   "PlanId": "2",
+#   "StartAt": "2025-10-20T10:00:00Z",
+#   "ExpiresAt": "2025-11-20T10:00:00Z",
+#   "IsActive": true,
+#   "AutoRenew": true,
+#   "Plan": {
+#     "Name": "Professional",
+#     "PriceCents": 2999,
+#     "MaxAppointments": 20
+#   }
+# }
+
+###
+# 5. SIMULAR CHECKOUT - PLAN PREMIUM (3 meses) 💎
+###
+POST {{baseUrl}}/subscriptions/checkout
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "PlanId": 3,
+  "DurationMonths": 3
+}
+
+# Error esperado (ya tienes suscripción activa):
+# {
+#   "statusCode": 409,
+#   "message": "Ya tienes una suscripción activa. Cancélala primero para cambiar de plan."
+# }
+
+###
+# 6. VERIFICAR LÍMITE DE CITAS 📊
+# Muestra cuántas citas te quedan este mes
+###
+GET {{baseUrl}}/subscriptions/appointment-limit
+Authorization: Bearer {{patientToken}}
+
+# Respuesta esperada (plan Professional):
+# {
+#   "hasLimit": true,
+#   "remaining": 20
+# }
+
+# Respuesta esperada (plan Premium):
+# {
+#   "hasLimit": false,
+#   "remaining": null
+# }
+
+###
+# 7. VER HISTORIAL DE SUSCRIPCIONES 📜
+# Muestra todas las suscripciones (activas e inactivas)
+###
+GET {{baseUrl}}/subscriptions/history
+Authorization: Bearer {{patientToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "Id": "2",
+#     "PlanId": "2",
+#     "IsActive": true,
+#     "Plan": { "Name": "Professional" }
+#   },
+#   {
+#     "Id": "1",
+#     "PlanId": "1",
+#     "IsActive": false,
+#     "Plan": { "Name": "Basic" }
+#   }
+# ]
+
+###
+# 8. CANCELAR SUSCRIPCIÓN ❌
+# Desactiva la auto-renovación (no desactiva la suscripción inmediatamente)
+###
+DELETE {{baseUrl}}/subscriptions/cancel
+Authorization: Bearer {{patientToken}}
+
+# Respuesta esperada:
+# {
+#   "Id": "2",
+#   "AutoRenew": false,
+#   "ExpiresAt": "2025-11-20T10:00:00Z",
+#   "message": "Suscripción cancelada. Seguirás teniendo acceso hasta el 2025-11-20."
+# }
+
+###
+# 9. INTENTAR CANCELAR PLAN BASIC ⚠️
+# Error: No se puede cancelar el plan gratuito
+###
+DELETE {{baseUrl}}/subscriptions/cancel
+Authorization: Bearer {{patientToken}}
+
+# Error esperado:
+# {
+#   "statusCode": 400,
+#   "message": "No puedes cancelar el plan gratuito"
+# }
+
+###
+# 10. VALIDACIONES - PLAN INEXISTENTE ❌
+###
+POST {{baseUrl}}/subscriptions/checkout
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "PlanId": 999,
+  "DurationMonths": 1
+}
+
+# Error esperado:
+# {
+#   "statusCode": 404,
+#   "message": "Plan no encontrado"
+# }
+
+###
+# 11. VALIDACIONES - DURACIÓN INVÁLIDA ❌
+###
+POST {{baseUrl}}/subscriptions/checkout
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "PlanId": 2,
+  "DurationMonths": 15
+}
+
+# Error esperado:
+# {
+#   "statusCode": 400,
+#   "message": ["DurationMonths must not be greater than 12"]
+# }
+
+###
+# 12. PERMISOS - SOLO PACIENTES PUEDEN SUSCRIBIRSE ⛔
+# Ejecutar con token de DOCTOR o ADMIN
+###
+POST {{baseUrl}}/subscriptions/checkout
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "PlanId": 2,
+  "DurationMonths": 1
+}
+
+# Error esperado:
+# {
+#   "statusCode": 403,
+#   "message": "Forbidden resource"
+# }

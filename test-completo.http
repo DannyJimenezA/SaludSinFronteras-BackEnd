@@ -1,0 +1,602 @@
+###
+# PRUEBAS COMPLETAS - Backend Telemedicina
+# Ejecutar en orden para que las pruebas funcionen correctamente
+###
+
+@baseUrl = http://localhost:3000
+
+# ⬇️ Reemplaza estos tokens después de hacer login (paso 3)
+@adminToken = YOUR_ADMIN_TOKEN_HERE
+@doctorToken = YOUR_DOCTOR_TOKEN_HERE
+@patientToken = YOUR_PATIENT_TOKEN_HERE
+
+###
+# ===========================================
+# PASO 1: CREAR USUARIOS DE PRUEBA
+# ===========================================
+###
+
+###
+# 1.1 Crear Usuario ADMIN
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "Email": "admin@telemedicina.com",
+  "Password": "Admin123!",
+  "PasswordConfirm": "Admin123!",
+  "FirstName": "Admin",
+  "LastName1": "Principal",
+  "LastName2": "Sistema",
+  "Role": "ADMIN",
+  "DateOfBirth": "1990-01-01",
+  "Phone": "+50612345678",
+  "GenderId": 1,
+  "IdentificationTypeId": 1,
+  "Identification": "101110111",
+  "NationalityId": 1,
+  "ResidenceCountryId": 1,
+  "NativeLanguageId": 1
+}
+
+# Respuesta: { "userId": "1" } ⬅️ Guarda este ID
+
+###
+# 1.2 Crear Usuario DOCTOR
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "Email": "doctor@telemedicina.com",
+  "Password": "Doctor123!",
+  "PasswordConfirm": "Doctor123!",
+  "FirstName": "Juan",
+  "LastName1": "Pérez",
+  "LastName2": "García",
+  "Role": "DOCTOR",
+  "DateOfBirth": "1985-05-15",
+  "Phone": "+50687654321",
+  "GenderId": 1,
+  "IdentificationTypeId": 1,
+  "Identification": "202220222",
+  "NationalityId": 1,
+  "ResidenceCountryId": 1,
+  "NativeLanguageId": 1
+}
+
+# Respuesta: { "userId": "2" } ⬅️ Guarda este ID
+
+###
+# 1.3 Crear Usuario PATIENT
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "Email": "paciente@telemedicina.com",
+  "Password": "Paciente123!",
+  "PasswordConfirm": "Paciente123!",
+  "FirstName": "María",
+  "LastName1": "González",
+  "LastName2": "López",
+  "Role": "PATIENT",
+  "DateOfBirth": "1995-08-20",
+  "Phone": "+50611223344",
+  "GenderId": 2,
+  "IdentificationTypeId": 1,
+  "Identification": "303330333",
+  "NationalityId": 1,
+  "ResidenceCountryId": 1,
+  "NativeLanguageId": 1
+}
+
+# Respuesta: { "userId": "3" } ⬅️ Guarda este ID
+
+###
+# IMPORTANTE: Si requiere verificación de email, ejecuta en la BD:
+# UPDATE UsersAuth SET IsEmailVerified = 1 WHERE UserId IN (1, 2, 3);
+###
+
+###
+# ===========================================
+# PASO 2: OBTENER TOKENS JWT (LOGIN)
+# ===========================================
+###
+
+###
+# 2.1 Login como ADMIN
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "Email": "admin@telemedicina.com",
+  "Password": "Admin123!"
+}
+
+# Respuesta: { "accessToken": "..." } ⬅️ Copia el token y reemplázalo arriba en @adminToken
+
+###
+# 2.2 Login como DOCTOR
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "Email": "doctor@telemedicina.com",
+  "Password": "Doctor123!"
+}
+
+# Respuesta: { "accessToken": "..." } ⬅️ Copia el token y reemplázalo arriba en @doctorToken
+
+###
+# 2.3 Login como PATIENT
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "Email": "paciente@telemedicina.com",
+  "Password": "Paciente123!"
+}
+
+# Respuesta: { "accessToken": "..." } ⬅️ Copia el token y reemplázalo arriba en @patientToken
+
+###
+# ===========================================
+# PASO 3: PRUEBAS FASE 1 - INFRAESTRUCTURA
+# ===========================================
+###
+
+###
+# 3.1 Verificar i18n - Español (Default)
+GET {{baseUrl}}/
+Accept-Language: es
+
+###
+# 3.2 Verificar i18n - Inglés
+GET {{baseUrl}}/
+Accept-Language: en
+
+###
+# 3.3 Verificar i18n - Francés
+GET {{baseUrl}}/
+Accept-Language: fr
+
+###
+# 3.4 Verificar i18n - Portugués
+GET {{baseUrl}}/
+Accept-Language: pt
+
+###
+# ===========================================
+# PASO 4: PRUEBAS FASE 3 - SUSCRIPCIONES
+# ===========================================
+###
+
+###
+# 4.1 ✅ Seed de Planes (ADMIN) - Ejecutar UNA SOLA VEZ
+POST {{baseUrl}}/plans/seed
+Authorization: Bearer {{adminToken}}
+
+# Respuesta: 3 planes creados (Basic, Professional, Premium)
+
+###
+# 4.2 ✅ Listar Todos los Planes (PATIENT)
+GET {{baseUrl}}/plans
+Authorization: Bearer {{patientToken}}
+
+# Respuesta: Array de 3 planes
+
+###
+# 4.3 ✅ Ver Mi Suscripción Activa (PATIENT) - Primera vez
+# Se asigna automáticamente el plan Basic gratuito
+GET {{baseUrl}}/subscriptions/me
+Authorization: Bearer {{patientToken}}
+
+# Respuesta: Suscripción Basic con ExpiresAt=null
+
+###
+# 4.4 ✅ Verificar Límite de Citas (PATIENT)
+GET {{baseUrl}}/subscriptions/appointment-limit
+Authorization: Bearer {{patientToken}}
+
+# Respuesta: { "hasLimit": true, "remaining": 5 } (plan Basic)
+
+###
+# 4.5 ✅ Ver Historial de Suscripciones (PATIENT)
+GET {{baseUrl}}/subscriptions/history
+Authorization: Bearer {{patientToken}}
+
+# Respuesta: Array con suscripción Basic
+
+###
+# 4.6 ❌ Intentar Cancelar Plan Basic (debe fallar)
+DELETE {{baseUrl}}/subscriptions/cancel
+Authorization: Bearer {{patientToken}}
+
+# Error esperado: 400 "No puedes cancelar el plan gratuito"
+
+###
+# 4.7 ❌ Intentar Hacer Seed de Planes como PATIENT (debe fallar)
+POST {{baseUrl}}/plans/seed
+Authorization: Bearer {{patientToken}}
+
+# Error esperado: 403 Forbidden
+
+###
+# 4.8 ❌ Intentar Hacer Checkout como DOCTOR (debe fallar)
+POST {{baseUrl}}/subscriptions/checkout
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "PlanId": 2,
+  "DurationMonths": 1
+}
+
+# Error esperado: 403 Forbidden
+
+###
+# 4.9 PREPARACIÓN: Eliminar suscripción Basic para probar checkout
+# Ejecutar en la BD: DELETE FROM Subscriptions WHERE UserId = 3;
+###
+
+###
+# 4.10 ✅ Simular Checkout - Plan Professional (PATIENT)
+# Ejecutar DESPUÉS de eliminar la suscripción Basic
+POST {{baseUrl}}/subscriptions/checkout
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "PlanId": 2,
+  "DurationMonths": 1
+}
+
+# Respuesta: Suscripción Professional con ExpiresAt en 30 días
+
+###
+# 4.11 ❌ Intentar Hacer Otro Checkout (debe fallar)
+POST {{baseUrl}}/subscriptions/checkout
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "PlanId": 3,
+  "DurationMonths": 1
+}
+
+# Error esperado: 409 "Ya tienes una suscripción activa"
+
+###
+# 4.12 ✅ Ver Mi Suscripción Activa (ahora debería ser Professional)
+GET {{baseUrl}}/subscriptions/me
+Authorization: Bearer {{patientToken}}
+
+# Respuesta: Suscripción Professional
+
+###
+# 4.13 ✅ Verificar Límite de Citas (ahora debería ser 20)
+GET {{baseUrl}}/subscriptions/appointment-limit
+Authorization: Bearer {{patientToken}}
+
+# Respuesta: { "hasLimit": true, "remaining": 20 }
+
+###
+# 4.14 ✅ Cancelar Suscripción Professional (AutoRenew = false)
+DELETE {{baseUrl}}/subscriptions/cancel
+Authorization: Bearer {{patientToken}}
+
+# Respuesta: AutoRenew = false, IsActive sigue en true
+
+###
+# 4.15 ✅ Verificar que la suscripción sigue activa
+GET {{baseUrl}}/subscriptions/me
+Authorization: Bearer {{patientToken}}
+
+# Respuesta: IsActive=true, AutoRenew=false
+
+###
+# 4.16 ✅ Simular Checkout - Plan Premium (3 meses)
+# Primero eliminar suscripción Professional en BD
+# DELETE FROM Subscriptions WHERE UserId = 3;
+POST {{baseUrl}}/subscriptions/checkout
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "PlanId": 3,
+  "DurationMonths": 3
+}
+
+# Respuesta: Suscripción Premium con ExpiresAt en 90 días
+
+###
+# 4.17 ✅ Verificar Límite de Citas (Premium = ilimitado)
+GET {{baseUrl}}/subscriptions/appointment-limit
+Authorization: Bearer {{patientToken}}
+
+# Respuesta: { "hasLimit": false, "remaining": null }
+
+###
+# ===========================================
+# PASO 5: PRUEBAS FASE 2 - HISTORIALES MÉDICOS
+# ===========================================
+###
+
+###
+# 5.1 ✅ Crear Historial Médico (DOCTOR)
+POST {{baseUrl}}/medical-records
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "PatientUserId": 3,
+  "Diagnosis": "Paciente presenta síntomas de gripe común con fiebre leve de 38°C y congestión nasal. Se recomienda reposo.",
+  "Prescriptions": "Paracetamol 500mg cada 8 horas por 3 días. Ibuprofeno 400mg si persiste la fiebre.",
+  "Recommendations": "Reposo absoluto por 3 días, aumentar ingesta de líquidos (mínimo 2 litros de agua al día), evitar cambios bruscos de temperatura.",
+  "Files": ["uploads/receta-2025-10-20.pdf", "uploads/analisis-sangre.pdf"]
+}
+
+# Respuesta: Historial médico creado con ID
+# ⬅️ Guarda el Id de la respuesta para las siguientes pruebas
+
+###
+# 5.2 ✅ Ver Historial Médico Específico (DOCTOR que lo creó)
+GET {{baseUrl}}/medical-records/1
+Authorization: Bearer {{doctorToken}}
+
+# Respuesta: Historial médico completo (desencriptado)
+
+###
+# 5.3 ✅ Ver Historial Médico Específico (PATIENT dueño)
+GET {{baseUrl}}/medical-records/1
+Authorization: Bearer {{patientToken}}
+
+# Respuesta: Historial médico completo (el paciente puede ver sus propios historiales)
+
+###
+# 5.4 ✅ Ver Historial Médico Específico (ADMIN)
+GET {{baseUrl}}/medical-records/1
+Authorization: Bearer {{adminToken}}
+
+# Respuesta: Historial médico completo (ADMIN tiene acceso total)
+
+###
+# 5.5 ✅ Ver Todos los Historiales de un Paciente (PATIENT)
+GET {{baseUrl}}/medical-records/patient/3
+Authorization: Bearer {{patientToken}}
+
+# Respuesta: Array de historiales del paciente
+
+###
+# 5.6 ✅ Ver Todos los Historiales de un Paciente (DOCTOR)
+GET {{baseUrl}}/medical-records/patient/3
+Authorization: Bearer {{doctorToken}}
+
+# Respuesta: Array de historiales del paciente
+
+###
+# 5.7 ✅ Actualizar Historial Médico (DOCTOR que lo creó)
+PATCH {{baseUrl}}/medical-records/1
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "Diagnosis": "Actualización: Paciente evolucionó favorablemente, la fiebre disminuyó a 37.5°C. Se mantiene el tratamiento.",
+  "Recommendations": "Continuar con el reposo por 2 días más. Control de temperatura cada 6 horas."
+}
+
+# Respuesta: Historial actualizado (datos re-encriptados con nuevo IV)
+
+###
+# 5.8 ✅ Verificar que la actualización se guardó
+GET {{baseUrl}}/medical-records/1
+Authorization: Bearer {{doctorToken}}
+
+# Respuesta: Debe mostrar el Diagnosis y Recommendations actualizados
+
+###
+# 5.9 ❌ Intentar Actualizar Historial como PATIENT (debe fallar)
+PATCH {{baseUrl}}/medical-records/1
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "Diagnosis": "Intento no autorizado"
+}
+
+# Error esperado: 403 Forbidden
+
+###
+# 5.10 ✅ Eliminar Historial Médico (ADMIN)
+DELETE {{baseUrl}}/medical-records/1
+Authorization: Bearer {{adminToken}}
+
+# Respuesta: { "message": "Historial médico eliminado exitosamente" }
+
+###
+# 5.11 ❌ Intentar Ver Historial Eliminado (debe fallar)
+GET {{baseUrl}}/medical-records/1
+Authorization: Bearer {{doctorToken}}
+
+# Error esperado: 404 Not Found
+
+###
+# 5.12 ✅ Crear Otro Historial para más pruebas
+POST {{baseUrl}}/medical-records
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "PatientUserId": 3,
+  "Diagnosis": "Paciente acude a consulta de seguimiento. Evolución favorable de cuadro gripal anterior. Afebril, sin síntomas respiratorios.",
+  "Prescriptions": "Ninguna. Paciente dado de alta del tratamiento anterior.",
+  "Recommendations": "Continuar con alimentación balanceada y ejercicio moderado. Control en 6 meses o si presenta nuevos síntomas.",
+  "Files": []
+}
+
+# Respuesta: Nuevo historial médico creado
+
+###
+# ===========================================
+# PASO 6: VALIDACIONES Y ERRORES
+# ===========================================
+###
+
+###
+# 6.1 ❌ Crear Historial con Diagnosis muy corto (debe fallar)
+POST {{baseUrl}}/medical-records
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "PatientUserId": 3,
+  "Diagnosis": "Gripe",
+  "Prescriptions": "Paracetamol",
+  "Recommendations": "Reposo"
+}
+
+# Error esperado: 400 "Diagnosis must be longer than or equal to 10 characters"
+
+###
+# 6.2 ❌ Crear Historial con demasiados archivos (debe fallar)
+POST {{baseUrl}}/medical-records
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "PatientUserId": 3,
+  "Diagnosis": "Paciente con múltiples estudios de laboratorio adjuntos",
+  "Prescriptions": "Ninguna",
+  "Recommendations": "Revisar estudios",
+  "Files": [
+    "file1.pdf", "file2.pdf", "file3.pdf", "file4.pdf", "file5.pdf",
+    "file6.pdf", "file7.pdf", "file8.pdf", "file9.pdf", "file10.pdf",
+    "file11.pdf"
+  ]
+}
+
+# Error esperado: 400 "Files must contain no more than 10 elements"
+
+###
+# 6.3 ❌ Crear Historial sin PatientUserId (debe fallar)
+POST {{baseUrl}}/medical-records
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "Diagnosis": "Diagnóstico sin paciente especificado",
+  "Prescriptions": "Ninguna",
+  "Recommendations": "Ninguna"
+}
+
+# Error esperado: 400 Validation error
+
+###
+# 6.4 ❌ Checkout con PlanId inexistente (debe fallar)
+POST {{baseUrl}}/subscriptions/checkout
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "PlanId": 999,
+  "DurationMonths": 1
+}
+
+# Error esperado: 404 "Plan no encontrado"
+
+###
+# 6.5 ❌ Checkout con DurationMonths inválido (debe fallar)
+POST {{baseUrl}}/subscriptions/checkout
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "PlanId": 2,
+  "DurationMonths": 15
+}
+
+# Error esperado: 400 "DurationMonths must not be greater than 12"
+
+###
+# 6.6 ❌ Acceder a endpoint sin autenticación (debe fallar)
+GET {{baseUrl}}/medical-records/1
+
+# Error esperado: 401 Unauthorized
+
+###
+# ===========================================
+# PASO 7: VERIFICACIÓN DE ENCRIPTACIÓN
+# ===========================================
+###
+
+###
+# 7.1 Crear un historial para verificar encriptación
+POST {{baseUrl}}/medical-records
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "PatientUserId": 3,
+  "Diagnosis": "TEXTO DE PRUEBA PARA ENCRIPTACIÓN - Este texto NO debe aparecer en texto plano en la base de datos",
+  "Prescriptions": "Prescripción de prueba",
+  "Recommendations": "Recomendación de prueba"
+}
+
+# Ahora ejecuta en la BD:
+# SELECT Id, DiagnosisEnc, EncryptionIV FROM MedicalRecords ORDER BY Id DESC LIMIT 1;
+#
+# Deberías ver:
+# - DiagnosisEnc: Texto encriptado en hexadecimal (NO el texto plano)
+# - EncryptionIV: Vector de inicialización único
+#
+# Si ves el texto "TEXTO DE PRUEBA..." en DiagnosisEnc, la encriptación NO está funcionando
+
+###
+# 7.2 Leer el mismo historial vía API
+GET {{baseUrl}}/medical-records/3
+Authorization: Bearer {{doctorToken}}
+
+# Deberías ver el texto desencriptado:
+# "TEXTO DE PRUEBA PARA ENCRIPTACIÓN - Este texto NO debe aparecer..."
+
+###
+# ===========================================
+# PASO 8: VERIFICACIÓN DE AUDITORÍA
+# ===========================================
+###
+
+# Ejecuta en la BD:
+# SELECT * FROM DataAccessLogs ORDER BY CreatedAt DESC LIMIT 20;
+#
+# Deberías ver registros de:
+# - CREATE cuando se creó un historial médico
+# - READ cuando se consultó un historial
+# - UPDATE cuando se actualizó un historial
+# - DELETE cuando se eliminó un historial
+#
+# Cada registro debe incluir:
+# - UserId: ID del usuario que hizo la acción
+# - ResourceType: "MedicalRecord"
+# - ResourceId: ID del historial médico
+# - Action: CREATE, READ, UPDATE, DELETE
+# - IpAddress: IP del cliente
+# - UserAgent: Navegador/cliente HTTP
+
+###
+# ===========================================
+# ✅ PRUEBAS COMPLETADAS
+# ===========================================
+###
+
+# Si todas las pruebas pasaron, tu backend está funcionando correctamente ✅
+#
+# Checklist:
+# - [ ] Usuarios creados (ADMIN, DOCTOR, PATIENT)
+# - [ ] Tokens JWT obtenidos
+# - [ ] i18n funciona en 4 idiomas
+# - [ ] Seed de planes ejecutado
+# - [ ] Suscripciones funcionan correctamente
+# - [ ] Historiales médicos se crean, leen, actualizan y eliminan
+# - [ ] Permisos por rol funcionan correctamente
+# - [ ] Validaciones de DTOs funcionan
+# - [ ] Encriptación de datos funciona (verificado en BD)
+# - [ ] Auditoría registra todas las acciones (verificado en BD)

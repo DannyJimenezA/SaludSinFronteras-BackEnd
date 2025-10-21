@@ -27,6 +27,9 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 // 🆕 Importaciones de Fase 2
 import { MedicalRecordsModule } from './medical-records/medical-records.module';
 
+// 🆕 Importaciones de Fase 3
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+
 @Module({
   imports: [
     // Archivos estáticos
@@ -78,6 +81,9 @@ import { MedicalRecordsModule } from './medical-records/medical-records.module';
 
     // 🆕 Módulos de Fase 2
     MedicalRecordsModule,
+
+    // 🆕 Módulos de Fase 3
+    SubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [
