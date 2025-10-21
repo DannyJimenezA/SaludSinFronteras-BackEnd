@@ -1,10 +1,15 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagesGateway } from './messages.gateway';
+import { TranslationService } from '../common/services/translation.service';
 
 @Injectable()
 export class MessagesService {
-  constructor(private prisma: PrismaService, private ws: MessagesGateway) {}
+  constructor(
+    private prisma: PrismaService,
+    private ws: MessagesGateway,
+    private translationService: TranslationService,
+  ) {}
   
 
   async list(conversationId: bigint, userId: bigint) {
@@ -14,10 +19,43 @@ export class MessagesService {
     }).catch(() => null);
     if (!cp) throw new ForbiddenException('Forbidden');
 
-    return this.prisma.messages.findMany({
+    // Obtener idioma nativo del usuario que está consultando
+    const user = await this.prisma.users.findUnique({
+      where: { Id: userId },
+      include: {
+        NativeLanguage: {
+          select: { Code: true },
+        },
+      },
+    });
+
+    const userLanguageCode = user?.NativeLanguage?.Code || 'en';
+
+    // Obtener mensajes con traducciones
+    const messages = await this.prisma.messages.findMany({
       where: { ConversationId: conversationId },
       orderBy: { CreatedAt: 'asc' },
+      include: {
+        MessageTranslations: {
+          where: {
+            Language: this.translationService.normalizeLanguageCode(userLanguageCode),
+          },
+        },
+      },
     });
+
+    // Formatear respuesta con mensaje original + traducción
+    return messages.map((msg) => ({
+      ...msg,
+      Id: msg.Id.toString(),
+      SenderUserId: msg.SenderUserId.toString(),
+      ConversationId: msg.ConversationId.toString(),
+      FileId: msg.FileId?.toString(),
+      ReplyToMessageId: msg.ReplyToMessageId?.toString(),
+      // Incluir traducción si existe
+      Translation: msg.MessageTranslations[0]?.Content || null,
+      TranslationLanguage: msg.MessageTranslations[0]?.Language || null,
+    }));
   }
 
   async send(conversationId: bigint, userId: bigint, dto: { Content: string; Language?: string }) {
@@ -27,22 +65,102 @@ export class MessagesService {
     }).catch(() => null);
     if (!cp) throw new ForbiddenException('Forbidden');
 
+    // Obtener el idioma del remitente
+    const sender = await this.prisma.users.findUnique({
+      where: { Id: userId },
+      include: {
+        NativeLanguage: {
+          select: { Code: true },
+        },
+      },
+    });
+
+    const sourceLanguage = dto.Language || sender?.NativeLanguage?.Code || 'en';
+    const normalizedSourceLang = this.translationService.normalizeLanguageCode(sourceLanguage);
+
+    // Crear el mensaje original
     const msg = await this.prisma.messages.create({
       data: {
         ConversationId: conversationId,
         SenderUserId: userId,
         Type: 'text',
         Content: dto.Content,
-        Language: dto.Language ?? null,
+        Language: normalizedSourceLang,
       },
     });
 
-    // emite por WS
+    // Obtener idiomas de todos los participantes de la conversación
+    const participants = await this.prisma.conversationParticipants.findMany({
+      where: { ConversationId: conversationId },
+      include: {
+        Users: {
+          include: {
+            NativeLanguage: {
+              select: { Code: true },
+            },
+          },
+        },
+      },
+    });
+
+    const targetLanguages = participants
+      .map((p) => p.Users.NativeLanguage?.Code)
+      .filter((code): code is string => !!code)
+      .map((code) => this.translationService.normalizeLanguageCode(code));
+
+    // Traducir a los idiomas de los participantes
+    const translations = await this.translationService.translateToMultiple(
+      dto.Content,
+      normalizedSourceLang,
+      targetLanguages,
+    );
+
+    // Guardar traducciones en la base de datos
+    const translationPromises: Promise<any>[] = [];
+    const engineName = process.env.TRANSLATION_PROVIDER || 'MyMemory';
+
+    translations.forEach((translatedText, targetLang) => {
+      translationPromises.push(
+        this.prisma.messageTranslations.create({
+          data: {
+            MessageId: msg.Id,
+            Language: targetLang,
+            Content: translatedText,
+            Engine: engineName,
+            IsAuto: true,
+            GlossaryApplied: false,
+          },
+        }),
+      );
+    });
+
+    await Promise.all(translationPromises);
+
+    // Obtener el mensaje con todas sus traducciones para enviarlo por WS
+    const msgWithTranslations = await this.prisma.messages.findUnique({
+      where: { Id: msg.Id },
+      include: {
+        MessageTranslations: true,
+      },
+    });
+
+    // Emitir mensaje por WebSocket con traducciones
     this.ws.emitMessage(conversationId.toString(), {
-      ...msg,
       Id: msg.Id.toString(),
-      SenderUserId: msg.SenderUserId.toString(),
       ConversationId: msg.ConversationId.toString(),
+      SenderUserId: msg.SenderUserId.toString(),
+      Type: msg.Type,
+      Content: msg.Content,
+      Language: msg.Language,
+      CreatedAt: msg.CreatedAt,
+      FileId: msg.FileId?.toString(),
+      ReplyToMessageId: msg.ReplyToMessageId?.toString(),
+      // Incluir todas las traducciones disponibles
+      Translations: msgWithTranslations?.MessageTranslations.map((t) => ({
+        Language: t.Language,
+        Content: t.Content,
+        Engine: t.Engine,
+      })) || [],
     });
 
     return msg;

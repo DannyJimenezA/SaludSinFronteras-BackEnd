@@ -1,0 +1,64 @@
+### ========================================
+### TEST DE SUBIDA DE ARCHIVOS A CLOUDINARY
+### ========================================
+
+### PASO 1: Login para obtener el token
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "Email": "paciente@telemedicina.com",
+  "Password": "password123"
+}
+
+### IMPORTANTE: Copia el "access_token" de la respuesta anterior
+### y reemplázalo en la variable @token abajo
+
+@token = TU_ACCESS_TOKEN_AQUI
+
+### ========================================
+### PASO 2: Subir un archivo a una conversación
+### ========================================
+
+### Opción 1: Subir una imagen
+POST http://localhost:3000/conversations/1/messages/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-image.jpg"
+Content-Type: image/jpeg
+
+< ./test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Opción 2: Subir un PDF
+POST http://localhost:3000/conversations/1/messages/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="documento.pdf"
+Content-Type: application/pdf
+
+< ./documento.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### ========================================
+### VERIFICAR RESULTADO
+### ========================================
+###
+### Si Cloudinary está configurado correctamente, en la respuesta
+### verás algo como:
+### {
+###   "Id": "123",
+###   "Content": "https://res.cloudinary.com/tu-cloud/image/upload/v1234567890/telemed/archivo.jpg",
+###   ...
+### }
+###
+### Si NO está configurado, verás:
+### {
+###   "Id": "123",
+###   "Content": "/uploads/1234567890_archivo.jpg",
+###   ...
+### }

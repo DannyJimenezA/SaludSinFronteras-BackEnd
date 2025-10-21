@@ -1,4 +1,107 @@
-import { ForbiddenException, Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+// import { ForbiddenException, Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+// import { PrismaService } from '../prisma/prisma.service';
+// import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
+
+// @Injectable()
+// export class VideoService {
+//   private roomClient: RoomServiceClient;
+
+//   constructor(private prisma: PrismaService) {
+//     const host = process.env.LIVEKIT_HOST;
+//     const key = process.env.LIVEKIT_API_KEY;
+//     const secret = process.env.LIVEKIT_API_SECRET;
+
+//     if (!host || !key || !secret) {
+//       throw new Error('[Video] Faltan LIVEKIT_HOST / LIVEKIT_API_KEY / LIVEKIT_API_SECRET en .env');
+//     }
+//     this.roomClient = new RoomServiceClient(host, key, secret);
+//   }
+
+//   async ensureRoom(appointmentId: bigint, actorId: bigint, role: 'ADMIN'|'DOCTOR'|'PATIENT') {
+//     const appt = await this.prisma.appointments.findUnique({ where: { Id: appointmentId } });
+//     if (!appt) throw new NotFoundException('Appointment not found');
+//     if (role !== 'ADMIN' && appt.PatientUserId !== actorId && appt.DoctorUserId !== actorId) {
+//       throw new ForbiddenException('Forbidden');
+//     }
+
+//     const roomName = appt.SfuRoomId ?? `appt_${appointmentId.toString()}`;
+//     if (!appt.SfuRoomId) {
+//       try {
+//         await this.roomClient.createRoom({
+//           name: roomName,
+//           metadata: JSON.stringify({ appointmentId: appointmentId.toString() }),
+//         });
+//       } catch (e) {
+//         // si ya existe en LiveKit, lo ignoramos
+//       }
+//       await this.prisma.appointments.update({ where: { Id: appointmentId }, data: { SfuRoomId: roomName } });
+//     }
+//     return { AppointmentId: appointmentId.toString(), RoomName: roomName };
+//   }
+
+//   async getJoinToken(
+//     appointmentId: bigint,
+//     actor: { id: bigint; role: 'ADMIN'|'DOCTOR'|'PATIENT'; name?: string },
+//   ) {
+//     const appt = await this.prisma.appointments.findUnique({ where: { Id: appointmentId } });
+//     if (!appt) throw new NotFoundException('Appointment not found');
+//     if (actor.role !== 'ADMIN' && appt.PatientUserId !== actor.id && appt.DoctorUserId !== actor.id) {
+//       throw new ForbiddenException('Forbidden');
+//     }
+
+//     const { RoomName } = await this.ensureRoom(appointmentId, actor.id, actor.role);
+
+//     // genera JWT (string)
+//     const at = new AccessToken(process.env.LIVEKIT_API_KEY!, process.env.LIVEKIT_API_SECRET!, {
+//       identity: `${actor.role}_${actor.id.toString()}`,
+//       name: actor.name ?? undefined,
+//       ttl: 60 * 60,
+//     });
+//     at.addGrant({ roomJoin: true, room: RoomName, canPublish: true, canSubscribe: true });
+
+//     let jwt: string;
+//     try {
+//       jwt = await at.toJwt();                   // <— STRING
+//     } catch (err) {
+//       throw new InternalServerErrorException('Failed to sign LiveKit token');
+//     }
+
+//     // log de sanidad (no imprime el token completo)
+//     console.log('[LiveKit] token sample:', jwt.slice(0, 20), '...');
+
+//     // Generar link directo al sandbox de LiveKit
+//     const sandboxUrl = process.env.LIVEKIT_SANDBOX_URL || 'https://saludsinfronteras-2q91c9.sandbox.livekit.io';
+//     const directLink = `${sandboxUrl}/?token=${encodeURIComponent(jwt)}&roomName=${encodeURIComponent(RoomName)}`;
+
+//     return {
+//       roomName: RoomName,
+//       token: jwt,                               // <— devuelve string
+//       url: process.env.LIVEKIT_WS_URL,
+//       // 🆕 Link directo para unirse sin configuración adicional
+//       joinLink: directLink,
+//     };
+//   }
+
+//   async endRoom(appointmentId: bigint, actorId: bigint, role: 'ADMIN'|'DOCTOR'|'PATIENT') {
+//     const appt = await this.prisma.appointments.findUnique({ where: { Id: appointmentId } });
+//     if (!appt) throw new NotFoundException('Appointment not found');
+//     if (role !== 'ADMIN' && appt.DoctorUserId !== actorId) {
+//       throw new ForbiddenException('Only doctor or admin can end room');
+//     }
+//     if (appt.SfuRoomId) {
+//       try { await this.roomClient.deleteRoom(appt.SfuRoomId); } catch {}
+//       await this.prisma.appointments.update({ where: { Id: appointmentId }, data: { SfuRoomId: null } });
+//     }
+//     return { ok: true };
+//   }
+// }
+
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
 
@@ -12,80 +115,138 @@ export class VideoService {
     const secret = process.env.LIVEKIT_API_SECRET;
 
     if (!host || !key || !secret) {
-      throw new Error('[Video] Faltan LIVEKIT_HOST / LIVEKIT_API_KEY / LIVEKIT_API_SECRET en .env');
+      throw new Error(
+        '[Video] Faltan LIVEKIT_HOST / LIVEKIT_API_KEY / LIVEKIT_API_SECRET en .env',
+      );
     }
+
     this.roomClient = new RoomServiceClient(host, key, secret);
   }
 
-  async ensureRoom(appointmentId: bigint, actorId: bigint, role: 'ADMIN'|'DOCTOR'|'PATIENT') {
-    const appt = await this.prisma.appointments.findUnique({ where: { Id: appointmentId } });
+  async ensureRoom(
+    appointmentId: bigint,
+    actorId: bigint,
+    role: 'ADMIN' | 'DOCTOR' | 'PATIENT',
+  ) {
+    const appt = await this.prisma.appointments.findUnique({
+      where: { Id: appointmentId },
+    });
     if (!appt) throw new NotFoundException('Appointment not found');
-    if (role !== 'ADMIN' && appt.PatientUserId !== actorId && appt.DoctorUserId !== actorId) {
+    if (
+      role !== 'ADMIN' &&
+      appt.PatientUserId !== actorId &&
+      appt.DoctorUserId !== actorId
+    ) {
       throw new ForbiddenException('Forbidden');
     }
 
     const roomName = appt.SfuRoomId ?? `appt_${appointmentId.toString()}`;
+
     if (!appt.SfuRoomId) {
       try {
         await this.roomClient.createRoom({
           name: roomName,
-          metadata: JSON.stringify({ appointmentId: appointmentId.toString() }),
+          metadata: JSON.stringify({
+            appointmentId: appointmentId.toString(),
+          }),
         });
       } catch (e) {
         // si ya existe en LiveKit, lo ignoramos
       }
-      await this.prisma.appointments.update({ where: { Id: appointmentId }, data: { SfuRoomId: roomName } });
+
+      await this.prisma.appointments.update({
+        where: { Id: appointmentId },
+        data: { SfuRoomId: roomName },
+      });
     }
+
     return { AppointmentId: appointmentId.toString(), RoomName: roomName };
   }
 
   async getJoinToken(
     appointmentId: bigint,
-    actor: { id: bigint; role: 'ADMIN'|'DOCTOR'|'PATIENT'; name?: string },
+    actor: { id: bigint; role: 'ADMIN' | 'DOCTOR' | 'PATIENT'; name?: string },
   ) {
-    const appt = await this.prisma.appointments.findUnique({ where: { Id: appointmentId } });
+    const appt = await this.prisma.appointments.findUnique({
+      where: { Id: appointmentId },
+    });
     if (!appt) throw new NotFoundException('Appointment not found');
-    if (actor.role !== 'ADMIN' && appt.PatientUserId !== actor.id && appt.DoctorUserId !== actor.id) {
+    if (
+      actor.role !== 'ADMIN' &&
+      appt.PatientUserId !== actor.id &&
+      appt.DoctorUserId !== actor.id
+    ) {
       throw new ForbiddenException('Forbidden');
     }
 
     const { RoomName } = await this.ensureRoom(appointmentId, actor.id, actor.role);
 
-    // genera JWT (string)
-    const at = new AccessToken(process.env.LIVEKIT_API_KEY!, process.env.LIVEKIT_API_SECRET!, {
-      identity: `${actor.role}_${actor.id.toString()}`,
-      name: actor.name ?? undefined,
-      ttl: 60 * 60,
+    // Generar el token JWT para LiveKit
+    const at = new AccessToken(
+      process.env.LIVEKIT_API_KEY!,
+      process.env.LIVEKIT_API_SECRET!,
+      {
+        identity: `${actor.role}_${actor.id.toString()}`,
+        name: actor.name ?? undefined,
+        ttl: 60 * 60, // 1 hora
+      },
+    );
+
+    at.addGrant({
+      roomJoin: true,
+      room: RoomName,
+      canPublish: true,
+      canSubscribe: true,
     });
-    at.addGrant({ roomJoin: true, room: RoomName, canPublish: true, canSubscribe: true });
 
     let jwt: string;
     try {
-      jwt = await at.toJwt();                   // <— STRING
-    } catch (err) {
+      jwt = await at.toJwt();
+    } catch {
       throw new InternalServerErrorException('Failed to sign LiveKit token');
     }
 
-    // log de sanidad (no imprime el token completo)
-    console.log('[LiveKit] token sample:', jwt.slice(0, 20), '...');
+    console.log('[LiveKit] Token generado correctamente para', RoomName);
+
+    // 🔧 NUEVO LINK CORRECTO
+    const livekitDomain =
+      process.env.LIVEKIT_DOMAIN ||
+      'salud-sin-fronteras-t5ebkkcs.livekit.cloud';
+
+    // Si usas el LiveKit Meet oficial (disponible en tu instancia cloud)
+    const joinLink = `https://${livekitDomain}/meet?token=${encodeURIComponent(jwt)}`;
 
     return {
       roomName: RoomName,
-      token: jwt,                               // <— devuelve string
-      url: process.env.LIVEKIT_WS_URL,
+      token: jwt,
+      url: `wss://${livekitDomain}`,
+      joinLink,
     };
   }
 
-  async endRoom(appointmentId: bigint, actorId: bigint, role: 'ADMIN'|'DOCTOR'|'PATIENT') {
-    const appt = await this.prisma.appointments.findUnique({ where: { Id: appointmentId } });
+  async endRoom(
+    appointmentId: bigint,
+    actorId: bigint,
+    role: 'ADMIN' | 'DOCTOR' | 'PATIENT',
+  ) {
+    const appt = await this.prisma.appointments.findUnique({
+      where: { Id: appointmentId },
+    });
     if (!appt) throw new NotFoundException('Appointment not found');
     if (role !== 'ADMIN' && appt.DoctorUserId !== actorId) {
       throw new ForbiddenException('Only doctor or admin can end room');
     }
+
     if (appt.SfuRoomId) {
-      try { await this.roomClient.deleteRoom(appt.SfuRoomId); } catch {}
-      await this.prisma.appointments.update({ where: { Id: appointmentId }, data: { SfuRoomId: null } });
+      try {
+        await this.roomClient.deleteRoom(appt.SfuRoomId);
+      } catch {}
+      await this.prisma.appointments.update({
+        where: { Id: appointmentId },
+        data: { SfuRoomId: null },
+      });
     }
+
     return { ok: true };
   }
 }

@@ -1,0 +1,274 @@
+### 🎥 PRUEBAS DE VIDEOLLAMADAS - LINK DIRECTO
+###
+### Este archivo demuestra cómo obtener un link directo para unirse a una videollamada
+### sin necesidad de configurar manualmente las credenciales.
+###
+### El link directo abre directamente el sandbox de LiveKit con todo preconfigurado.
+
+@baseUrl = http://localhost:3000
+
+# ==========================================
+# VARIABLES - Reemplaza con tus tokens reales
+# ==========================================
+
+# Token de paciente
+@patientToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Token de doctor
+@doctorToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# ID de cita con videollamada
+@appointmentId = 8
+
+# ==========================================
+# OBTENER LINK DIRECTO PARA VIDEOLLAMADA
+# ==========================================
+
+###
+# 1. ✅ PACIENTE obtiene credenciales + link directo
+POST {{baseUrl}}/video/join/{{appointmentId}}
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+# Respuesta esperada (ANTES):
+# {
+#   "roomName": "appt_8",
+#   "token": "eyJhbGciOiJIUzI1NiJ9...",
+#   "url": "wss://salud-sin-fronteras-t5ebkkcs.livekit.cloud"
+# }
+
+# Respuesta esperada (AHORA - CON LINK DIRECTO):
+# {
+#   "roomName": "appt_8",
+#   "token": "eyJhbGciOiJIUzI1NiJ9.eyJuYW1lIjoicGFjaWVudGVAdGVsZW1lZGljaW5hLmNvbSIsInZpZGVvIjp7InJvb21Kb2luIjp0cnVlLCJyb29tIjoiYXBwdF84IiwiY2FuUHVibGlzaCI6dHJ1ZSwiY2FuU3Vic2NyaWJlIjp0cnVlfSwiaXNzIjoiQVBJaDlURm1aSFZlSDhGIiwiZXhwIjoxNzYxMDc0ODk3LCJuYmYiOjAsInN1YiI6IlBBVElFTlRfMjAifQ.iObaiZCJuwRk-p-FuE4UuiwQ7jmp-37DLADvUt-b774",
+#   "url": "wss://salud-sin-fronteras-t5ebkkcs.livekit.cloud",
+#   "joinLink": "https://saludsinfronteras-2q91c9.sandbox.livekit.io/?token=eyJhbGc...&roomName=appt_8"
+# }
+
+###
+# 2. ✅ DOCTOR obtiene credenciales + link directo
+POST {{baseUrl}}/video/join/{{appointmentId}}
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+# Respuesta esperada:
+# {
+#   "roomName": "appt_8",
+#   "token": "eyJhbGciOiJIUzI1NiJ9...",
+#   "url": "wss://salud-sin-fronteras-t5ebkkcs.livekit.cloud",
+#   "joinLink": "https://saludsinfronteras-2q91c9.sandbox.livekit.io/?token=eyJhbGc...&roomName=appt_8"
+# }
+
+# ==========================================
+# CÓMO USAR EL LINK DIRECTO
+# ==========================================
+
+# OPCIÓN 1: Copiar y pegar en el navegador
+# ----------------------------------------
+# 1. Ejecuta la petición POST /video/join/:appointmentId
+# 2. Copia el valor de "joinLink" de la respuesta
+# 3. Pega el link en tu navegador
+# 4. ¡Automáticamente te unes a la videollamada!
+
+# OPCIÓN 2: En tu aplicación frontend
+# ----------------------------------------
+# const response = await fetch('/video/join/8', {
+#   method: 'POST',
+#   headers: { 'Authorization': `Bearer ${token}` }
+# });
+#
+# const data = await response.json();
+#
+# // Opción A: Abrir en nueva ventana
+# window.open(data.joinLink, '_blank');
+#
+# // Opción B: Redirigir en la misma ventana
+# window.location.href = data.joinLink;
+#
+# // Opción C: Mostrar como iframe
+# <iframe src={data.joinLink} width="100%" height="600px" />
+
+# OPCIÓN 3: Enviar link por WhatsApp/Email
+# ----------------------------------------
+# Puedes enviar el joinLink directamente al paciente/doctor
+# por WhatsApp, Email, SMS, etc. y ellos solo necesitan hacer click.
+
+# ==========================================
+# EJEMPLO DE FLUJO COMPLETO
+# ==========================================
+
+###
+# PASO 1: Crear una cita (si no tienes una)
+POST {{baseUrl}}/appointments
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "PatientUserId": 20,
+  "DoctorUserId": 2,
+  "ScheduledAt": "2025-10-25T15:00:00Z",
+  "DurationMin": 30,
+  "Modality": "online"
+}
+
+# Guarda el "id" de la respuesta como @appointmentId
+
+###
+# PASO 2: El paciente solicita unirse a la videollamada
+POST {{baseUrl}}/video/join/{{appointmentId}}
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+# Respuesta:
+# {
+#   "roomName": "appt_8",
+#   "token": "eyJhbGc...",
+#   "url": "wss://...",
+#   "joinLink": "https://saludsinfronteras-2q91c9.sandbox.livekit.io/?token=eyJhbGc...&roomName=appt_8"
+# }
+
+###
+# PASO 3: El doctor solicita unirse a la videollamada
+POST {{baseUrl}}/video/join/{{appointmentId}}
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+# Respuesta (con link diferente pero mismo roomName):
+# {
+#   "roomName": "appt_8",
+#   "token": "eyJhbGc...",  <-- Token diferente para el doctor
+#   "url": "wss://...",
+#   "joinLink": "https://saludsinfronteras-2q91c9.sandbox.livekit.io/?token=eyJhbGc...&roomName=appt_8"
+# }
+
+###
+# PASO 4: Ambos abren sus respectivos joinLink
+# - El paciente abre su link
+# - El doctor abre su link
+# - ¡Se conectan automáticamente en la misma sala!
+
+###
+# PASO 5: Finalizar la videollamada
+POST {{baseUrl}}/video/end/{{appointmentId}}
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+# ==========================================
+# VENTAJAS DEL LINK DIRECTO
+# ==========================================
+
+# ✅ Sin configuración manual de credenciales
+# ✅ Un solo click para unirse
+# ✅ Se puede compartir por WhatsApp, Email, SMS
+# ✅ Funciona en cualquier navegador (Chrome, Firefox, Safari, Edge)
+# ✅ No requiere instalar nada
+# ✅ Funciona en móviles y tablets
+# ✅ El sandbox de LiveKit maneja todo (micrófono, cámara, compartir pantalla)
+
+# ==========================================
+# CARACTERÍSTICAS DEL SANDBOX DE LIVEKIT
+# ==========================================
+
+# El sandbox incluye:
+# 📹 Video de alta calidad
+# 🎤 Audio con cancelación de ruido
+# 📱 Soporte para móviles
+# 💻 Compartir pantalla
+# 👥 Ver todos los participantes
+# 🔇 Silenciar/activar micrófono
+# 📷 Encender/apagar cámara
+# 🖼️ Vista de galería y vista enfocada
+# 📊 Indicador de calidad de conexión
+# 🔐 Conexión segura (WebRTC)
+
+# ==========================================
+# PERSONALIZACIÓN (OPCIONAL)
+# ==========================================
+
+# Si quieres personalizar la apariencia del sandbox:
+# https://docs.livekit.io/guides/room/sandbox/
+
+# O puedes crear tu propio frontend con LiveKit React Components:
+# https://docs.livekit.io/guides/client-sdk-web/
+
+# ==========================================
+# CONFIGURACIÓN EN .ENV
+# ==========================================
+
+# El sistema usa esta URL por defecto:
+# LIVEKIT_SANDBOX_URL=https://saludsinfronteras-2q91c9.sandbox.livekit.io
+
+# Si tienes otro sandbox, cámbialo en .env:
+# LIVEKIT_SANDBOX_URL=https://tu-sandbox-personalizado.livekit.io
+
+# ==========================================
+# EJEMPLO DE INTEGRACIÓN EN FRONTEND
+# ==========================================
+
+# React/Vue/Angular:
+# ------------------
+# async function joinVideoCall(appointmentId) {
+#   const response = await fetch(`/video/join/${appointmentId}`, {
+#     method: 'POST',
+#     headers: {
+#       'Authorization': `Bearer ${localStorage.getItem('token')}`
+#     }
+#   });
+#
+#   const data = await response.json();
+#
+#   // Opción 1: Abrir en nueva ventana
+#   window.open(data.joinLink, '_blank', 'width=1200,height=800');
+#
+#   // Opción 2: Redirigir
+#   window.location.href = data.joinLink;
+#
+#   // Opción 3: Mostrar en modal/iframe
+#   setVideoUrl(data.joinLink);
+# }
+
+# HTML simple:
+# ------------
+# <button onclick="joinCall()">Unirse a Videollamada</button>
+#
+# <script>
+# async function joinCall() {
+#   const res = await fetch('/video/join/8', {
+#     method: 'POST',
+#     headers: { 'Authorization': 'Bearer YOUR_TOKEN' }
+#   });
+#   const data = await res.json();
+#   window.open(data.joinLink, '_blank');
+# }
+# </script>
+
+# ==========================================
+# TESTING
+# ==========================================
+
+# Para probar la videollamada:
+# 1. Obtén el joinLink del paciente
+# 2. Obtén el joinLink del doctor
+# 3. Abre ambos links en ventanas diferentes (o dispositivos diferentes)
+# 4. ¡Deberías ver ambas cámaras conectadas!
+
+# Nota: Puedes usar el mismo navegador con ventanas de incógnito
+# para simular 2 usuarios diferentes
+
+# ==========================================
+# TROUBLESHOOTING
+# ==========================================
+
+# Si el link no funciona:
+# 1. Verifica que LIVEKIT_SANDBOX_URL esté correctamente configurado
+# 2. Asegúrate de que el token no haya expirado (TTL: 1 hora)
+# 3. Verifica que el navegador tenga permisos de cámara/micrófono
+# 4. Revisa la consola del navegador para errores
+
+# Si ves "Room not found":
+# - El token es válido pero la sala no existe
+# - Ejecuta POST /video/join para crear la sala primero
+
+# Si ves "Permission denied":
+# - El navegador bloqueó el acceso a cámara/micrófono
+# - Dale permisos desde la configuración del navegador

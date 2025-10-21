@@ -33,6 +33,9 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 // 🆕 Importaciones de Fase 4
 import { VerificationModule } from './verification/verification.module';
 
+// 🆕 Importaciones de Fase 5
+import { AdminModule } from './admin/admin.module';
+
 @Module({
   imports: [
     // Archivos estáticos
@@ -90,6 +93,9 @@ import { VerificationModule } from './verification/verification.module';
 
     // 🆕 Módulos de Fase 4
     VerificationModule,
+
+    // 🆕 Módulos de Fase 5
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [

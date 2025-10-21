@@ -420,6 +420,12 @@ model UsersAuth {
   EmailVerifiedAt       DateTime?
   PasswordResetToken    String?   @db.VarChar(255)
   PasswordResetExpiry   DateTime?
+
+  // 🆕 Campos de gestión (Fase 5)
+  IsBanned              Boolean   @default(false) @db.Bit(1)
+  BanReason             String?   @db.LongText
+  LastLogin             DateTime?
+
   Users                 Users     @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_UsersAuth_User")
 }
 

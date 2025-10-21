@@ -1,0 +1,432 @@
+###
+# Test File - Admin Dashboard (Fase 5)
+# Archivo de prueba para panel de administración
+#
+# IMPORTANTE: Solo ADMIN puede acceder a estos endpoints
+###
+
+@baseUrl = http://localhost:3000
+@adminToken = YOUR_ADMIN_JWT_TOKEN_HERE
+
+# IDs de ejemplo (reemplazar con IDs reales)
+@patientUserId = 3
+@doctorUserId = 2
+
+###
+# ===========================================
+# DASHBOARD - ESTADÍSTICAS
+# ===========================================
+###
+
+###
+# 1. ✅ Obtener estadísticas generales del dashboard (ADMIN)
+GET {{baseUrl}}/admin/dashboard/stats
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# {
+#   "totalUsers": 15,
+#   "totalDoctors": 5,
+#   "totalPatients": 9,
+#   "totalAdmins": 1,
+#   "verifiedDoctors": 3,
+#   "pendingDoctors": 1,
+#   "rejectedDoctors": 1,
+#   "totalAppointments": 50,
+#   "completedAppointments": 30,
+#   "cancelledAppointments": 5,
+#   "upcomingAppointments": 15,
+#   "totalMedicalRecords": 25,
+#   "medicalRecordsThisMonth": 8,
+#   "activeSubscriptions": 12,
+#   "basicSubscriptions": 6,
+#   "professionalSubscriptions": 4,
+#   "premiumSubscriptions": 2,
+#   "totalRevenueCents": 39996,
+#   "revenueThisMonthCents": 12999,
+#   "newUsersToday": 2,
+#   "newUsersThisWeek": 5,
+#   "newUsersThisMonth": 10
+# }
+
+###
+# 2. ✅ Obtener estadísticas de citas por estado (ADMIN)
+GET {{baseUrl}}/admin/dashboard/appointments-by-status
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "status": "completed",
+#     "count": 150,
+#     "percentage": 50
+#   },
+#   {
+#     "status": "scheduled",
+#     "count": 100,
+#     "percentage": 33.33
+#   },
+#   {
+#     "status": "cancelled",
+#     "count": 50,
+#     "percentage": 16.67
+#   }
+# ]
+
+###
+# 3. ✅ Obtener estadísticas de suscripciones por plan (ADMIN)
+GET {{baseUrl}}/admin/dashboard/subscriptions-by-plan
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "planName": "Basic",
+#     "count": 6,
+#     "revenueCents": 0,
+#     "percentage": 50
+#   },
+#   {
+#     "planName": "Professional",
+#     "count": 4,
+#     "revenueCents": 11996,
+#     "percentage": 33.33
+#   },
+#   {
+#     "planName": "Premium",
+#     "count": 2,
+#     "revenueCents": 19998,
+#     "percentage": 16.67
+#   }
+# ]
+
+###
+# 4. ✅ Obtener actividad de usuarios (últimos 7 días) (ADMIN)
+GET {{baseUrl}}/admin/dashboard/user-activity?days=7
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "date": "2025-10-14",
+#     "newUsers": 3,
+#     "newDoctors": 1,
+#     "newPatients": 2
+#   },
+#   {
+#     "date": "2025-10-15",
+#     "newUsers": 5,
+#     "newDoctors": 2,
+#     "newPatients": 3
+#   },
+#   ...
+# ]
+
+###
+# 5. ✅ Obtener actividad de usuarios (últimos 30 días) (ADMIN)
+GET {{baseUrl}}/admin/dashboard/user-activity?days=30
+Authorization: Bearer {{adminToken}}
+
+###
+# 6. ✅ Obtener top 5 doctores (ADMIN)
+GET {{baseUrl}}/admin/dashboard/top-doctors?limit=5
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "doctorId": "2",
+#     "doctorName": "Juan Pérez",
+#     "email": "doctor@telemedicina.com",
+#     "totalAppointments": 45,
+#     "completedAppointments": 40,
+#     "isVerified": true
+#   },
+#   {
+#     "doctorId": "5",
+#     "doctorName": "María Rodríguez",
+#     "email": "dra.rodriguez@telemedicina.com",
+#     "totalAppointments": 38,
+#     "completedAppointments": 35,
+#     "isVerified": true
+#   },
+#   ...
+# ]
+
+###
+# 7. ✅ Obtener logs de auditoría recientes (últimos 20) (ADMIN)
+GET {{baseUrl}}/admin/dashboard/audit-logs?limit=20
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "id": "150",
+#     "userId": "2",
+#     "userName": "Juan Pérez",
+#     "userRole": "DOCTOR",
+#     "resourceType": "MedicalRecord",
+#     "resourceId": "10",
+#     "action": "CREATE",
+#     "ipAddress": "127.0.0.1",
+#     "createdAt": "2025-10-20T15:30:00Z"
+#   },
+#   ...
+# ]
+
+###
+# ===========================================
+# GESTIÓN DE USUARIOS
+# ===========================================
+###
+
+###
+# 8. ✅ Listar todos los usuarios (ADMIN)
+GET {{baseUrl}}/admin/users
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# {
+#   "users": [
+#     {
+#       "id": "1",
+#       "email": "admin@telemedicina.com",
+#       "fullName": "Admin Principal Sistema",
+#       "role": "ADMIN",
+#       "isEmailVerified": true,
+#       "isBanned": false,
+#       "createdAt": "2025-10-20T10:00:00Z"
+#     },
+#     ...
+#   ],
+#   "total": 15,
+#   "pages": 1
+# }
+
+###
+# 9. ✅ Listar solo DOCTORES (ADMIN)
+GET {{baseUrl}}/admin/users?role=DOCTOR
+Authorization: Bearer {{adminToken}}
+
+###
+# 10. ✅ Listar solo PATIENTS (ADMIN)
+GET {{baseUrl}}/admin/users?role=PATIENT
+Authorization: Bearer {{adminToken}}
+
+###
+# 11. ✅ Listar usuarios con paginación (ADMIN)
+GET {{baseUrl}}/admin/users?page=1&limit=10
+Authorization: Bearer {{adminToken}}
+
+###
+# 12. ✅ Buscar usuarios por nombre o email (ADMIN)
+GET {{baseUrl}}/admin/users?search=juan
+Authorization: Bearer {{adminToken}}
+
+###
+# 13. ✅ Filtrar doctores pendientes de verificación (ADMIN)
+GET {{baseUrl}}/admin/users?role=DOCTOR&verificationStatus=pending
+Authorization: Bearer {{adminToken}}
+
+###
+# 14. ✅ Filtrar doctores verificados (ADMIN)
+GET {{baseUrl}}/admin/users?role=DOCTOR&verificationStatus=approved
+Authorization: Bearer {{adminToken}}
+
+###
+# 15. ✅ Filtrar usuarios con email verificado (ADMIN)
+GET {{baseUrl}}/admin/users?isEmailVerified=true
+Authorization: Bearer {{adminToken}}
+
+###
+# 16. ✅ Obtener detalles de un usuario específico (ADMIN)
+GET {{baseUrl}}/admin/users/{{patientUserId}}
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# {
+#   "id": "3",
+#   "email": "paciente@telemedicina.com",
+#   "fullName": "María González López",
+#   "firstName": "María",
+#   "lastName1": "González",
+#   "lastName2": "López",
+#   "role": "PATIENT",
+#   "phone": "+50611223344",
+#   "birthDate": "1995-08-20T00:00:00Z",
+#   "isEmailVerified": true,
+#   "isBanned": false,
+#   "totalAppointments": 8,
+#   "totalMedicalRecords": 5,
+#   "activeSubscription": {
+#     "planName": "Professional",
+#     "expiresAt": "2025-11-20T10:00:00Z"
+#   },
+#   "createdAt": "2025-10-20T10:00:00Z",
+#   "updatedAt": "2025-10-20T15:00:00Z"
+# }
+
+###
+# 17. ✅ Obtener detalles de un doctor (ADMIN)
+GET {{baseUrl}}/admin/users/{{doctorUserId}}
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada (incluye datos de doctor):
+# {
+#   "id": "2",
+#   "email": "doctor@telemedicina.com",
+#   "fullName": "Juan Pérez García",
+#   "role": "DOCTOR",
+#   "verificationStatus": "approved",
+#   "licenseNumber": "MED-12345",
+#   "totalAppointments": 45,
+#   ...
+# }
+
+###
+# ===========================================
+# GESTIÓN DE USUARIOS - ACCIONES
+# ===========================================
+###
+
+###
+# 18. ✅ Banear a un usuario (ADMIN)
+POST {{baseUrl}}/admin/users/{{patientUserId}}/ban
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "Reason": "Violación de términos de servicio: spam en consultas médicas y lenguaje inapropiado hacia doctores."
+}
+
+# Respuesta esperada:
+# {
+#   "message": "Usuario baneado exitosamente. Razón: Violación de términos de servicio: spam en consultas médicas y lenguaje inapropiado hacia doctores."
+# }
+
+###
+# 19. ✅ Verificar que el usuario está baneado
+GET {{baseUrl}}/admin/users/{{patientUserId}}
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# {
+#   "id": "3",
+#   "isBanned": true,  // ⬅️ TRUE
+#   "banReason": "Violación de términos de servicio...",
+#   ...
+# }
+
+###
+# 20. ✅ Desbanear a un usuario (ADMIN)
+POST {{baseUrl}}/admin/users/{{patientUserId}}/unban
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# {
+#   "message": "Usuario desbaneado exitosamente"
+# }
+
+###
+# 21. ✅ Verificar que el usuario fue desbaneado
+GET {{baseUrl}}/admin/users/{{patientUserId}}
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# {
+#   "id": "3",
+#   "isBanned": false,  // ⬅️ FALSE
+#   "banReason": null,
+#   ...
+# }
+
+###
+# 22. ⚠️ Eliminar a un usuario PERMANENTEMENTE (ADMIN)
+# ADVERTENCIA: Esta acción es IRREVERSIBLE
+# Se eliminan TODOS los datos relacionados del usuario
+DELETE {{baseUrl}}/admin/users/{{patientUserId}}
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# {
+#   "message": "Usuario paciente@telemedicina.com eliminado permanentemente junto con todos sus datos"
+# }
+
+###
+# 23. ✅ Verificar que el usuario fue eliminado
+GET {{baseUrl}}/admin/users/{{patientUserId}}
+Authorization: Bearer {{adminToken}}
+
+# Error esperado: 404 "Usuario no encontrado"
+
+###
+# ===========================================
+# VALIDACIONES Y ERRORES
+# ===========================================
+###
+
+###
+# 24. ❌ PATIENT intenta acceder al dashboard (debe fallar)
+GET {{baseUrl}}/admin/dashboard/stats
+Authorization: Bearer {{patientToken}}
+
+# Error esperado: 403 Forbidden
+
+###
+# 25. ❌ DOCTOR intenta acceder al dashboard (debe fallar)
+GET {{baseUrl}}/admin/dashboard/stats
+Authorization: Bearer {{doctorToken}}
+
+# Error esperado: 403 Forbidden
+
+###
+# 26. ❌ ADMIN intenta banear a otro ADMIN (debe fallar)
+POST {{baseUrl}}/admin/users/1/ban
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "Reason": "Intento de ban a admin"
+}
+
+# Error esperado: 500 "No puedes banear a otros administradores"
+
+###
+# 27. ❌ ADMIN intenta eliminar a otro ADMIN (debe fallar)
+DELETE {{baseUrl}}/admin/users/1
+Authorization: Bearer {{adminToken}}
+
+# Error esperado: 500 "No puedes eliminar a otros administradores"
+
+###
+# 28. ❌ ADMIN intenta banear usuario inexistente (debe fallar)
+POST {{baseUrl}}/admin/users/999999/ban
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "Reason": "Usuario inexistente"
+}
+
+# Error esperado: 404 "Usuario no encontrado"
+
+###
+# ===========================================
+# ✅ PRUEBAS COMPLETADAS
+# ===========================================
+###
+
+# Checklist:
+# - [ ] ADMIN puede ver estadísticas generales
+# - [ ] ADMIN puede ver citas por estado
+# - [ ] ADMIN puede ver suscripciones por plan
+# - [ ] ADMIN puede ver actividad de usuarios
+# - [ ] ADMIN puede ver top doctores
+# - [ ] ADMIN puede ver logs de auditoría
+# - [ ] ADMIN puede listar usuarios con filtros
+# - [ ] ADMIN puede ver detalles de un usuario
+# - [ ] ADMIN puede banear usuarios
+# - [ ] ADMIN puede desbanear usuarios
+# - [ ] ADMIN puede eliminar usuarios
+# - [ ] No se puede banear/eliminar a otros ADMIN
+# - [ ] PATIENT y DOCTOR no pueden acceder al dashboard

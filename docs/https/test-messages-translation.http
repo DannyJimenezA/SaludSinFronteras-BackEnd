@@ -1,0 +1,288 @@
+### 🌐 PRUEBAS DE TRADUCCIÓN AUTOMÁTICA DE MENSAJES
+###
+### Este archivo demuestra la traducción automática de mensajes entre pacientes y doctores
+### con diferentes idiomas nativos.
+###
+### IMPORTANTE: Asegúrate de tener usuarios con diferentes idiomas nativos configurados
+
+@baseUrl = http://localhost:3000
+
+# ==========================================
+# VARIABLES - Reemplaza con tus tokens reales
+# ==========================================
+
+# Token de paciente con idioma nativo INGLÉS (en)
+@patientToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Token de doctor con idioma nativo ESPAÑOL (es)
+@doctorToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# ID de conversación entre paciente y doctor
+@conversationId = 1
+
+# ==========================================
+# PREREQUISITO: Configurar idiomas nativos
+# ==========================================
+
+###
+# 1. ✅ Actualizar idioma nativo del paciente a INGLÉS (ejecutar como ADMIN)
+# Primero necesitas tener registros en la tabla NativeLanguages
+# INSERT INTO NativeLanguages (Code, Name) VALUES ('en', 'English'), ('es', 'Español');
+
+###
+# 2. ✅ Crear conversación entre paciente y doctor
+POST {{baseUrl}}/conversations
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "ParticipantUserIds": [1, 2],
+  "AppointmentId": null
+}
+
+# Respuesta esperada:
+# {
+#   "id": "1",
+#   "appointmentId": null,
+#   "createdBy": "1",
+#   "createdAt": "2025-01-15T10:00:00.000Z"
+# }
+
+# ==========================================
+# PRUEBAS DE TRADUCCIÓN AUTOMÁTICA
+# ==========================================
+
+###
+# 3. ✅ PACIENTE (inglés) envía mensaje en INGLÉS
+# El doctor recibirá el mensaje original + traducción al español
+POST {{baseUrl}}/conversations/{{conversationId}}/messages
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "Content": "Hello doctor! I have been experiencing severe headaches for the past 3 days. The pain is concentrated on the right side of my head and gets worse in the afternoon.",
+  "Language": "en"
+}
+
+# Respuesta esperada:
+# {
+#   "Id": "1",
+#   "ConversationId": "1",
+#   "SenderUserId": "1",
+#   "Type": "text",
+#   "Content": "Hello doctor! I have been experiencing severe headaches...",
+#   "Language": "en",
+#   "CreatedAt": "2025-01-15T10:05:00.000Z"
+# }
+#
+# El mensaje emitido por WebSocket incluirá:
+# {
+#   ...mensaje original...,
+#   "Translations": [
+#     {
+#       "Language": "es",
+#       "Content": "¡Hola doctor! He estado experimentando dolores de cabeza severos durante los últimos 3 días. El dolor se concentra en el lado derecho de mi cabeza y empeora por la tarde.",
+#       "Engine": "LibreTranslate"
+#     }
+#   ]
+# }
+
+###
+# 4. ✅ DOCTOR (español) envía mensaje en ESPAÑOL
+# El paciente recibirá el mensaje original + traducción al inglés
+POST {{baseUrl}}/conversations/{{conversationId}}/messages
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "Content": "Buenos días. Entiendo su preocupación. ¿Ha tenido náuseas o sensibilidad a la luz? ¿Cuándo fue la última vez que tuvo un dolor de cabeza similar?",
+  "Language": "es"
+}
+
+# El mensaje emitido por WebSocket incluirá:
+# {
+#   ...mensaje original...,
+#   "Translations": [
+#     {
+#       "Language": "en",
+#       "Content": "Good morning. I understand your concern. Have you had nausea or sensitivity to light? When was the last time you had a similar headache?",
+#       "Engine": "LibreTranslate"
+#     }
+#   ]
+# }
+
+###
+# 5. ✅ PACIENTE (inglés) responde en INGLÉS
+POST {{baseUrl}}/conversations/{{conversationId}}/messages
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "Content": "Yes, I have been feeling nauseous and the light bothers me a lot. I haven't had a headache like this in about 6 months.",
+  "Language": "en"
+}
+
+###
+# 6. ✅ DOCTOR (español) da diagnóstico en ESPAÑOL
+POST {{baseUrl}}/conversations/{{conversationId}}/messages
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "Content": "Basándome en sus síntomas, parece ser una migraña. Le recomiendo descansar en una habitación oscura y tomar ibuprofeno 400mg cada 8 horas. Si los síntomas persisten por más de 48 horas, debe acudir a urgencias.",
+  "Language": "es"
+}
+
+# ==========================================
+# CONSULTAR MENSAJES CON TRADUCCIONES
+# ==========================================
+
+###
+# 7. ✅ PACIENTE consulta mensajes (verá traducciones al inglés)
+GET {{baseUrl}}/conversations/{{conversationId}}/messages
+Authorization: Bearer {{patientToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "Id": "1",
+#     "Content": "Hello doctor! I have been experiencing...",
+#     "Language": "en",
+#     "SenderUserId": "1",
+#     "Translation": null,  // No hay traducción porque es su idioma
+#     "TranslationLanguage": null
+#   },
+#   {
+#     "Id": "2",
+#     "Content": "Buenos días. Entiendo su preocupación...",
+#     "Language": "es",
+#     "SenderUserId": "2",
+#     "Translation": "Good morning. I understand your concern...",
+#     "TranslationLanguage": "en"
+#   },
+#   {
+#     "Id": "3",
+#     "Content": "Yes, I have been feeling nauseous...",
+#     "Language": "en",
+#     "SenderUserId": "1",
+#     "Translation": null,
+#     "TranslationLanguage": null
+#   },
+#   {
+#     "Id": "4",
+#     "Content": "Basándome en sus síntomas, parece ser una migraña...",
+#     "Language": "es",
+#     "SenderUserId": "2",
+#     "Translation": "Based on your symptoms, it seems to be a migraine...",
+#     "TranslationLanguage": "en"
+#   }
+# ]
+
+###
+# 8. ✅ DOCTOR consulta mensajes (verá traducciones al español)
+GET {{baseUrl}}/conversations/{{conversationId}}/messages
+Authorization: Bearer {{doctorToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "Id": "1",
+#     "Content": "Hello doctor! I have been experiencing...",
+#     "Language": "en",
+#     "SenderUserId": "1",
+#     "Translation": "¡Hola doctor! He estado experimentando dolores de cabeza severos...",
+#     "TranslationLanguage": "es"
+#   },
+#   {
+#     "Id": "2",
+#     "Content": "Buenos días. Entiendo su preocupación...",
+#     "Language": "es",
+#     "SenderUserId": "2",
+#     "Translation": null,  // No hay traducción porque es su idioma
+#     "TranslationLanguage": null
+#   },
+#   ...
+# ]
+
+# ==========================================
+# PRUEBAS ADICIONALES - MENSAJES SIN IDIOMA
+# ==========================================
+
+###
+# 9. ✅ Enviar mensaje sin especificar idioma (se detectará automáticamente)
+POST {{baseUrl}}/conversations/{{conversationId}}/messages
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "Content": "Thank you doctor, I will follow your recommendations."
+}
+
+# El sistema usará el idioma nativo del paciente (inglés) como idioma del mensaje
+
+###
+# 10. ✅ Enviar mensaje corto (no se traduce si es muy corto)
+POST {{baseUrl}}/conversations/{{conversationId}}/messages
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "Content": "Ok"
+}
+
+# ==========================================
+# VERIFICAR TRADUCCIONES EN LA BASE DE DATOS
+# ==========================================
+
+# Para verificar que las traducciones se guardaron correctamente:
+# SELECT m.Id, m.Content, m.Language, mt.Language as TranslationLang, mt.Content as Translation
+# FROM Messages m
+# LEFT JOIN MessageTranslations mt ON m.Id = mt.MessageId
+# WHERE m.ConversationId = 1
+# ORDER BY m.CreatedAt ASC;
+
+# ==========================================
+# NOTAS IMPORTANTES
+# ==========================================
+
+# 1. El sistema usa MyMemory Translation API por defecto (GRATUITA)
+#    - Completamente gratuita, sin API key
+#    - 1000 palabras/día sin límite
+#    - Para producción, considera LibreTranslate self-hosted o APIs comerciales
+#
+# 2. Variables de entorno opcionales:
+#    TRANSLATION_PROVIDER=mymemory  (default)
+#    TRANSLATION_API_URL=https://api.mymemory.translated.net/get
+#
+# 3. Para cambiar a LibreTranslate (mejor calidad):
+#    TRANSLATION_PROVIDER=libretranslate
+#    TRANSLATION_API_URL=http://localhost:5000/translate
+#    Ver documentación: docs/TRANSLATION_APIS.md
+#
+# 3. Idiomas soportados por LibreTranslate:
+#    - en (English)
+#    - es (Español)
+#    - fr (Français)
+#    - de (Deutsch)
+#    - pt (Português)
+#    - it (Italiano)
+#    - ja (日本語)
+#    - ko (한국어)
+#    - zh (中文)
+#    - ar (العربية)
+#    - ru (Русский)
+#    - y muchos más...
+#
+# 4. El cliente WebSocket recibirá los mensajes con este formato:
+#    socket.on('message:new', (data) => {
+#      console.log('Mensaje original:', data.Content);
+#      console.log('Idioma original:', data.Language);
+#      console.log('Traducciones disponibles:', data.Translations);
+#
+#      // Buscar traducción en el idioma del usuario
+#      const userLang = 'es';
+#      const translation = data.Translations.find(t => t.Language === userLang);
+#      if (translation) {
+#        console.log('Traducción:', translation.Content);
+#      }
+#    });
