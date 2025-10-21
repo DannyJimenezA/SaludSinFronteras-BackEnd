@@ -177,6 +177,14 @@ model DoctorProfiles {
   MedicalSchool            String?                    @db.VarChar(160)
   YearsExperience          Int?
   Bio                      String?                    @db.LongText
+
+  // 🆕 Campos de verificación (Fase 4)
+  CertificationDocuments   String?                    @db.LongText // JSON array de URLs de documentos
+  VerificationNotes        String?                    @db.LongText // Notas del admin sobre la verificación
+  VerifiedAt               DateTime?                  // Fecha de verificación
+  VerifiedByAdminId        BigInt?                    // ID del admin que verificó
+  RejectionReason          String?                    @db.LongText // Razón de rechazo si aplica
+
   CreatedAt                DateTime                   @default(now())
   UpdatedAt                DateTime                   @default(now())
   AppointmentNotes         AppointmentNotes[]
@@ -187,6 +195,7 @@ model DoctorProfiles {
   Users                    Users                      @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_DoctorProfiles_User")
 
   @@index([LicenseCountryId], map: "IX_DP_LicenseCountryId")
+  @@index([VerificationStatus], map: "IX_DP_VerificationStatus")
 }
 
 model Drugs {

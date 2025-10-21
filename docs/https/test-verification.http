@@ -1,0 +1,394 @@
+###
+# Test File - Verification Module (Fase 4)
+# Archivo de prueba para verificación de doctores
+#
+# IMPORTANTE: Ejecutar en orden para que las pruebas funcionen correctamente
+###
+
+@baseUrl = http://localhost:3000
+@adminToken = YOUR_ADMIN_JWT_TOKEN_HERE
+@doctorToken = YOUR_DOCTOR_JWT_TOKEN_HERE
+
+# ⬇️ Reemplaza este ID después de crear el perfil de doctor
+@doctorUserId = YOUR_DOCTOR_USER_ID_HERE
+
+###
+# ===========================================
+# PREREQUISITO: Crear Perfil de Doctor
+# ===========================================
+# IMPORTANTE: El doctor debe tener un DoctorProfile antes de enviar verificación
+# Si no existe, crear con:
+# PATCH /doctors/me/profile
+# Authorization: Bearer {doctorToken}
+# {
+#   "LicenseNumber": "MED-12345",
+#   "LicenseCountryId": 1,
+#   "YearsExperience": 5,
+#   "Bio": "Médico general con 5 años de experiencia"
+# }
+###
+
+###
+# 0. ✅ Crear perfil de doctor (PREREQUISITO)
+PATCH {{baseUrl}}/doctors/me/profile
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "LicenseNumber": "MED-12345",
+  "LicenseCountryId": 1,
+  "YearsExperience": 5,
+  "Bio": "Médico general con 5 años de experiencia en medicina general"
+}
+
+# Respuesta esperada:
+# {
+#   "UserId": "2",
+#   "LicenseNumber": "MED-12345",
+#   "LicenseCountryId": 1,
+#   "VerificationStatus": "pending",
+#   "YearsExperience": 5,
+#   "Bio": "Médico general con 5 años de experiencia en medicina general",
+#   ...
+# }
+
+###
+
+###
+# 1. ✅ Doctor envía documentos de certificación (DOCTOR)
+POST {{baseUrl}}/verification/submit
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "CertificationDocuments": [
+    "uploads/licenses/medical-license-12345.pdf",
+    "uploads/diplomas/medical-degree-universidad-cr.pdf",
+    "uploads/certificates/specialty-cardiology.pdf"
+  ],
+  "Notes": "Licencia médica vigente hasta 2030. Especialidad en cardiología certificada por el Colegio de Médicos de Costa Rica."
+}
+
+# Respuesta esperada:
+# {
+#   "UserId": "2",
+#   "DoctorName": "Juan Pérez",
+#   "Email": "doctor@telemedicina.com",
+#   "LicenseNumber": "MED-12345",
+#   "LicenseCountry": "Costa Rica",
+#   "MedicalSchool": "Universidad de Costa Rica",
+#   "YearsExperience": 5,
+#   "VerificationStatus": "pending",
+#   "CertificationDocuments": ["uploads/licenses/...", ...],
+#   "VerificationNotes": "Licencia médica vigente...",
+#   "SubmittedAt": "2025-10-20T10:00:00Z",
+#   "UpdatedAt": "2025-10-20T10:00:00Z"
+# }
+
+###
+# 2. ✅ Doctor consulta su estado de verificación (DOCTOR)
+GET {{baseUrl}}/verification/status
+Authorization: Bearer {{doctorToken}}
+
+# Respuesta esperada:
+# {
+#   "VerificationStatus": "pending",
+#   "CertificationDocuments": ["uploads/licenses/...", ...],
+#   "VerificationNotes": "Licencia médica vigente...",
+#   ...
+# }
+
+###
+# 3. ✅ ADMIN lista doctores pendientes de verificación (ADMIN)
+GET {{baseUrl}}/verification/pending
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "UserId": "2",
+#     "DoctorName": "Juan Pérez",
+#     "Email": "doctor@telemedicina.com",
+#     "LicenseNumber": "MED-12345",
+#     "SubmittedAt": "2025-10-20T10:00:00Z",
+#     "DocumentsCount": 3
+#   }
+# ]
+
+###
+# 4. ✅ ADMIN consulta el estado de un doctor específico (ADMIN)
+GET {{baseUrl}}/verification/doctor/{{doctorUserId}}
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# {
+#   "UserId": "2",
+#   "DoctorName": "Juan Pérez",
+#   "Email": "doctor@telemedicina.com",
+#   "VerificationStatus": "pending",
+#   "CertificationDocuments": ["uploads/licenses/...", ...],
+#   "VerificationNotes": "Licencia médica vigente...",
+#   ...
+# }
+
+###
+# 5. ✅ ADMIN APRUEBA la verificación del doctor (ADMIN)
+POST {{base_url}}/verification/review/{{doctorUserId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "Action": "approve",
+  "AdminNotes": "Documentos verificados correctamente. Licencia médica vigente hasta 2030. Título universitario válido."
+}
+
+# Respuesta esperada:
+# {
+#   "UserId": "2",
+#   "VerificationStatus": "approved",  // ⬅️ Cambió a "approved"
+#   "VerifiedAt": "2025-10-20T11:00:00Z",  // ⬅️ Fecha de aprobación
+#   "VerifiedByAdminId": "1",  // ⬅️ ID del admin que aprobó
+#   "VerificationNotes": "Documentos verificados correctamente...",
+#   ...
+# }
+
+###
+# 6. ✅ ADMIN lista doctores verificados (aprobados) (ADMIN)
+GET {{baseUrl}}/verification/approved
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "UserId": "2",
+#     "DoctorName": "Juan Pérez",
+#     "VerificationStatus": "approved",
+#     "VerifiedAt": "2025-10-20T11:00:00Z",
+#     ...
+#   }
+# ]
+
+###
+# 7. ✅ Doctor consulta su estado (ahora aprobado) (DOCTOR)
+GET {{baseUrl}}/verification/status
+Authorization: Bearer {{doctorToken}}
+
+# Respuesta esperada:
+# {
+#   "VerificationStatus": "approved",
+#   "VerifiedAt": "2025-10-20T11:00:00Z",
+#   "VerifiedByAdminId": "1",
+#   ...
+# }
+
+###
+# ===========================================
+# FLUJO ALTERNATIVO: RECHAZO
+# ===========================================
+###
+
+###
+# 8. ❌ Crear otro doctor para probar rechazo
+# (Usar otro token de doctor diferente)
+
+###
+# 9. ❌ ADMIN RECHAZA la verificación del doctor (ADMIN)
+POST {{baseUrl}}/verification/review/{{doctorUserId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "Action": "reject",
+  "AdminNotes": "Documentos de baja calidad",
+  "RejectionReason": "Las imágenes de la licencia médica están borrosas y no se puede leer el número de licencia con claridad. Por favor, envía fotos de mejor calidad o escanea los documentos."
+}
+
+# Respuesta esperada:
+# {
+#   "UserId": "3",
+#   "VerificationStatus": "rejected",  // ⬅️ Cambió a "rejected"
+#   "RejectionReason": "Las imágenes de la licencia médica...",
+#   "VerificationNotes": "Documentos de baja calidad",
+#   "VerifiedAt": null,  // No se estableció fecha de verificación
+#   "VerifiedByAdminId": null,
+#   ...
+# }
+
+###
+# 10. ✅ ADMIN lista doctores rechazados (ADMIN)
+GET {{baseUrl}}/verification/rejected
+Authorization: Bearer {{adminToken}}
+
+# Respuesta esperada:
+# [
+#   {
+#     "UserId": "3",
+#     "DoctorName": "Dr. Otro Doctor",
+#     "VerificationStatus": "rejected",
+#     "RejectionReason": "Las imágenes de la licencia médica...",
+#     ...
+#   }
+# ]
+
+###
+# 11. ✅ Doctor rechazado reenvía documentos de mejor calidad (DOCTOR)
+POST {{baseUrl}}/verification/submit
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "CertificationDocuments": [
+    "uploads/licenses/medical-license-high-quality.pdf",
+    "uploads/diplomas/medical-degree-scanned.pdf"
+  ],
+  "Notes": "Documentos escaneados en alta calidad según solicitud del administrador."
+}
+
+# Respuesta esperada:
+# {
+#   "VerificationStatus": "pending",  // ⬅️ Vuelve a "pending"
+#   "CertificationDocuments": ["uploads/licenses/medical-license-high-quality.pdf", ...],
+#   ...
+# }
+
+###
+# ===========================================
+# VALIDACIONES Y ERRORES
+# ===========================================
+###
+
+###
+# 12. ❌ Doctor intenta enviar sin documentos (debe fallar)
+POST {{baseUrl}}/verification/submit
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "CertificationDocuments": [],
+  "Notes": "Sin documentos"
+}
+
+# Error esperado: 400 "Debes subir al menos 1 documento de certificación"
+
+###
+# 13. ❌ Doctor intenta enviar más de 10 documentos (debe fallar)
+POST {{baseUrl}}/verification/submit
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "CertificationDocuments": [
+    "file1.pdf", "file2.pdf", "file3.pdf", "file4.pdf", "file5.pdf",
+    "file6.pdf", "file7.pdf", "file8.pdf", "file9.pdf", "file10.pdf",
+    "file11.pdf"
+  ]
+}
+
+# Error esperado: 400 "No puedes subir más de 10 documentos"
+
+###
+# 14. ❌ ADMIN intenta aprobar sin razón al rechazar (debe fallar)
+POST {{baseUrl}}/verification/review/{{doctorUserId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "Action": "reject",
+  "AdminNotes": "Rechazo sin razón"
+}
+
+# Error esperado: 400 "Debes proporcionar una razón de rechazo (RejectionReason)"
+
+###
+# 15. ❌ PATIENT intenta enviar verificación (debe fallar)
+POST {{baseUrl}}/verification/submit
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{
+  "CertificationDocuments": ["file.pdf"]
+}
+
+# Error esperado: 403 "Solo los doctores pueden enviar verificaciones"
+
+###
+# 16. ❌ DOCTOR intenta revisar verificación (debe fallar)
+POST {{baseUrl}}/verification/review/{{doctorUserId}}
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "Action": "approve",
+  "AdminNotes": "Intento no autorizado"
+}
+
+# Error esperado: 403 Forbidden (solo ADMIN puede revisar)
+
+###
+# 17. ❌ DOCTOR intenta listar pendientes (debe fallar)
+GET {{baseUrl}}/verification/pending
+Authorization: Bearer {{doctorToken}}
+
+# Error esperado: 403 Forbidden (solo ADMIN puede listar)
+
+###
+# 18. ❌ Doctor ya verificado intenta reenviar documentos (debe fallar)
+POST {{baseUrl}}/verification/submit
+Authorization: Bearer {{doctorToken}}
+Content-Type: application/json
+
+{
+  "CertificationDocuments": ["new-file.pdf"]
+}
+
+# Error esperado: 400 "Ya estás verificado. No puedes enviar nuevos documentos."
+
+###
+# 19. ❌ ADMIN intenta revisar doctor sin documentos (debe fallar)
+# Primero eliminar CertificationDocuments en BD:
+# UPDATE DoctorProfiles SET CertificationDocuments = NULL WHERE UserId = X;
+
+POST {{baseUrl}}/verification/review/{{doctorUserId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "Action": "approve",
+  "AdminNotes": "Intento de aprobación"
+}
+
+# Error esperado: 400 "El doctor no ha enviado documentos de certificación aún"
+
+###
+# 20. ❌ ADMIN intenta revisar doctor inexistente (debe fallar)
+POST {{baseUrl}}/verification/review/999999
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "Action": "approve",
+  "AdminNotes": "Doctor inexistente"
+}
+
+# Error esperado: 404 "Doctor no encontrado"
+
+###
+# ===========================================
+# ✅ PRUEBAS COMPLETADAS
+# ===========================================
+###
+
+# Checklist:
+# - [ ] Doctor puede enviar documentos de certificación
+# - [ ] Doctor puede consultar su estado de verificación
+# - [ ] ADMIN puede listar doctores pendientes
+# - [ ] ADMIN puede consultar estado de un doctor específico
+# - [ ] ADMIN puede aprobar verificación
+# - [ ] ADMIN puede rechazar verificación con razón
+# - [ ] ADMIN puede listar doctores aprobados
+# - [ ] ADMIN puede listar doctores rechazados
+# - [ ] Doctor rechazado puede reenviar documentos
+# - [ ] Validaciones de cantidad de documentos funcionan (1-10)
+# - [ ] Validación de razón de rechazo funciona
+# - [ ] Permisos por rol funcionan correctamente
+# - [ ] Doctor verificado no puede reenviar documentos

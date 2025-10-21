@@ -30,6 +30,9 @@ import { MedicalRecordsModule } from './medical-records/medical-records.module';
 // 🆕 Importaciones de Fase 3
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
+// 🆕 Importaciones de Fase 4
+import { VerificationModule } from './verification/verification.module';
+
 @Module({
   imports: [
     // Archivos estáticos
@@ -84,6 +87,9 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
     // 🆕 Módulos de Fase 3
     SubscriptionsModule,
+
+    // 🆕 Módulos de Fase 4
+    VerificationModule,
   ],
   controllers: [AppController],
   providers: [
