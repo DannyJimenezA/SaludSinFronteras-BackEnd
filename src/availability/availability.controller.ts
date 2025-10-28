@@ -17,6 +17,13 @@ export class AvailabilityController {
     return this.svc.createSlot(BigInt(req.user.sub), dto);
   }
 
+  // doctor obtiene su propia disponibilidad
+  @Roles('DOCTOR')
+  @Get('doctors/me/availability')
+  listMine(@Req() req: any, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.svc.listForDoctor(BigInt(req.user.sub), from, to);
+  }
+
   // listar disponibilidad de un doctor para pacientes/otros
   @Roles('ADMIN','DOCTOR','PATIENT')
   @Get('doctors/:id/availability')
