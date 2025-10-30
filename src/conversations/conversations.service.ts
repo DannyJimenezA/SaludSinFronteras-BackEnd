@@ -31,9 +31,65 @@ export class ConversationsService {
   }
 
   async listMine(userId: bigint) {
-    return this.prisma.conversations.findMany({
+    const conversations = await this.prisma.conversations.findMany({
       where: { ConversationParticipants: { some: { UserId: userId } } },
       orderBy: { CreatedAt: 'desc' },
+      include: {
+        ConversationParticipants: {
+          include: {
+            Users: {
+              select: {
+                Id: true,
+                FirstName: true,
+                LastName1: true,
+                LastName2: true,
+                Email: true,
+              },
+            },
+          },
+        },
+        Messages: {
+          orderBy: { CreatedAt: 'desc' },
+          take: 1,
+          include: {
+            Users: {
+              select: {
+                FirstName: true,
+                LastName1: true,
+                LastName2: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Formatear la respuesta
+    return conversations.map((conv) => {
+      const otherParticipants = conv.ConversationParticipants.filter(
+        (p) => p.UserId !== userId,
+      ).map((p) => ({
+        userId: p.UserId.toString(),
+        name: `${p.Users.FirstName} ${p.Users.LastName1 || ''} ${p.Users.LastName2 || ''}`.trim(),
+        email: p.Users.Email,
+      }));
+
+      const lastMessage = conv.Messages[0]
+        ? {
+            content: conv.Messages[0].Content,
+            createdAt: conv.Messages[0].CreatedAt.toISOString(),
+            senderName: `${conv.Messages[0].Users.FirstName} ${conv.Messages[0].Users.LastName1 || ''} ${conv.Messages[0].Users.LastName2 || ''}`.trim(),
+          }
+        : undefined;
+
+      return {
+        id: conv.Id.toString(),
+        appointmentId: conv.AppointmentId?.toString(),
+        createdBy: conv.CreatedBy?.toString(),
+        createdAt: conv.CreatedAt.toISOString(),
+        participants: otherParticipants,
+        lastMessage,
+      };
     });
   }
 

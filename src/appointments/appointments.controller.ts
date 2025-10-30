@@ -5,6 +5,7 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentStatusDto } from './dto/update-status.dto';
+import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 
 @Controller('appointments')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -18,6 +19,46 @@ export class AppointmentsController {
     return this.svc.createForPatient(BigInt(req.user.sub), dto);
   }
 
+  // Obtener próximas citas del usuario autenticado (paciente o doctor)
+  // IMPORTANTE: Esta ruta debe estar ANTES de @Get(':id') para evitar que "upcoming" sea interpretado como un ID
+  @Roles('DOCTOR','PATIENT')
+  @Get('upcoming')
+  getUpcoming(@Req() req: any, @Query('limit') limit?: string) {
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+    return this.svc.getUpcoming(BigInt(req.user.sub), req.user.role, limitNum);
+  }
+
+  // Obtener citas pasadas del usuario autenticado (paciente o doctor)
+  @Roles('DOCTOR','PATIENT')
+  @Get('past')
+  getPast(@Req() req: any, @Query('limit') limit?: string) {
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    return this.svc.getPast(BigInt(req.user.sub), req.user.role, limitNum);
+  }
+
+  // Obtener citas canceladas del usuario autenticado (paciente o doctor)
+  @Roles('DOCTOR','PATIENT')
+  @Get('cancelled')
+  getCancelled(@Req() req: any, @Query('limit') limit?: string) {
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    return this.svc.getCancelled(BigInt(req.user.sub), req.user.role, limitNum);
+  }
+
+  // Obtener todas las citas del usuario autenticado con paginación y ordenamiento
+  @Roles('DOCTOR','PATIENT')
+  @Get('all')
+  getAll(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('order') order?: 'asc' | 'desc'
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const orderBy = order || 'desc';
+    return this.svc.getAll(BigInt(req.user.sub), req.user.role, pageNum, limitNum, orderBy);
+  }
+
   // Listado filtrado
   @Roles('ADMIN','DOCTOR','PATIENT')
   @Get()
@@ -25,7 +66,7 @@ export class AppointmentsController {
     return this.svc.list({ doctorId, patientId, status, from, to });
   }
 
-  // Detalle
+  // Detalle - debe estar DESPUÉS de rutas específicas como 'upcoming'
   @Roles('ADMIN','DOCTOR','PATIENT')
   @Get(':id')
   get(@Param('id') id: string, @Req() req: any) {
@@ -39,7 +80,19 @@ export class AppointmentsController {
     return this.svc.updateStatus(BigInt(id), BigInt(req.user.sub), req.user.role, dto);
   }
 
-    @Roles('ADMIN', 'DOCTOR', 'PATIENT')
+  // Cancelar cita
+  @Roles('ADMIN', 'DOCTOR', 'PATIENT')
+  @Patch(':id/cancel')
+  cancel(@Param('id') id: string, @Req() req: any, @Body() dto: CancelAppointmentDto) {
+    return this.svc.cancelAppointment(
+      BigInt(id),
+      BigInt(req.user.sub),
+      req.user.role,
+      dto.CancelReason,
+    );
+  }
+
+  @Roles('ADMIN', 'DOCTOR', 'PATIENT')
   @Delete(':id')
   delete(@Param('id') id: string, @Req() req: any) {
     return this.svc.deleteAppointment(BigInt(id), BigInt(req.user.sub), req.user.role);

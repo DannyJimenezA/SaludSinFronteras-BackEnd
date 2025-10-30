@@ -31,7 +31,7 @@ export class MessagesService {
 
     const userLanguageCode = user?.NativeLanguage?.Code || 'en';
 
-    // Obtener mensajes con traducciones
+    // Obtener mensajes con traducciones y datos del remitente
     const messages = await this.prisma.messages.findMany({
       where: { ConversationId: conversationId },
       orderBy: { CreatedAt: 'asc' },
@@ -41,20 +41,32 @@ export class MessagesService {
             Language: this.translationService.normalizeLanguageCode(userLanguageCode),
           },
         },
+        Users: {
+          select: {
+            Id: true,
+            FirstName: true,
+            LastName1: true,
+            LastName2: true,
+          },
+        },
       },
     });
 
     // Formatear respuesta con mensaje original + traducción
     return messages.map((msg) => ({
-      ...msg,
-      Id: msg.Id.toString(),
-      SenderUserId: msg.SenderUserId.toString(),
-      ConversationId: msg.ConversationId.toString(),
-      FileId: msg.FileId?.toString(),
-      ReplyToMessageId: msg.ReplyToMessageId?.toString(),
+      id: msg.Id.toString(),
+      conversationId: msg.ConversationId.toString(),
+      senderUserId: msg.SenderUserId.toString(),
+      senderName: `${msg.Users.FirstName} ${msg.Users.LastName1 || ''} ${msg.Users.LastName2 || ''}`.trim(),
+      type: msg.Type,
+      content: msg.Content,
+      language: msg.Language || undefined,
+      createdAt: msg.CreatedAt.toISOString(),
+      fileId: msg.FileId?.toString(),
+      replyToMessageId: msg.ReplyToMessageId?.toString(),
       // Incluir traducción si existe
-      Translation: msg.MessageTranslations[0]?.Content || null,
-      TranslationLanguage: msg.MessageTranslations[0]?.Language || null,
+      translation: msg.MessageTranslations[0]?.Content || null,
+      translationLanguage: msg.MessageTranslations[0]?.Language || null,
     }));
   }
 

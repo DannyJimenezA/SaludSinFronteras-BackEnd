@@ -108,7 +108,26 @@ export class AuthService {
     const ok = await bcrypt.compare(dto.Password, auth.PasswordHash);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
-    return this.issueTokens(user.Id, user.Email, user.Role as any);
+    const tokens = await this.issueTokens(user.Id, user.Email, user.Role as any);
+
+    // Retornar tokens junto con el usuario
+    return {
+      ...tokens,
+      user: {
+        UserId: user.Id.toString(),
+        Email: user.Email,
+        Role: user.Role,
+        FirstName: user.FirstName,
+        LastName1: user.LastName1,
+        LastName2: user.LastName2,
+        Phone: user.Phone,
+        DateOfBirth: user.DateOfBirth?.toISOString(),
+        IsEmailVerified: !!auth.EmailVerifiedAt,
+        IsActive: user.IsActive,
+        CreatedAt: user.CreatedAt.toISOString(),
+        UpdatedAt: user.UpdatedAt.toISOString(),
+      }
+    };
   }
 
   async verifyEmail(dto: VerifyEmailDto) {

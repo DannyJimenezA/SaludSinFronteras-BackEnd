@@ -19,6 +19,7 @@ import { MessagesModule } from './messages/messages.module';
 import { TranslationModule } from './translation/translatio.module';
 import { VideoModule } from './video/video.module';
 import { MailModule } from './mail/mail.module';
+import { SpecialtiesModule } from './specialties/specialties.module';
 
 // 🆕 Importaciones de Fase 1
 import { CommonModule } from './common/common.module';
@@ -77,6 +78,7 @@ import { AdminModule } from './admin/admin.module';
     UsersModule,
     AuthModule,
     DoctorsModule,
+    SpecialtiesModule,
     AvailabilityModule,
     AppointmentsModule,
     AppointmentNotesModule,
