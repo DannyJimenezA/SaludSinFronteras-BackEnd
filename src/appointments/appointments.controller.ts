@@ -28,6 +28,21 @@ export class AppointmentsController {
     return this.svc.getUpcoming(BigInt(req.user.sub), req.user.role, limitNum);
   }
 
+  // Obtener citas del doctor con filtro de fecha
+  @Roles('DOCTOR')
+  @Get('doctor/by-date')
+  getDoctorAppointmentsByDate(
+    @Req() req: any,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.svc.getDoctorAppointmentsByDate(
+      BigInt(req.user.sub),
+      startDate,
+      endDate,
+    );
+  }
+
   // Obtener citas pasadas del usuario autenticado (paciente o doctor)
   @Roles('DOCTOR','PATIENT')
   @Get('past')

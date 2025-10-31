@@ -2,10 +2,19 @@
 import { Controller, Get, Patch, Body, UseGuards, Req } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { IsOptional, IsString } from 'class-validator';
 
 class UpdateMeDto {
+  @IsOptional()
+  @IsString()
   FullName?: string;
+
+  @IsOptional()
+  @IsString()
   Phone?: string;
+
+  // Note: Gender is not included as the schema uses GenderId (foreign key)
+  // To update gender, you would need to provide GenderId with a valid foreign key
 }
 
 @Controller('users')

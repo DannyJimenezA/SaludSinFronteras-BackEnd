@@ -163,9 +163,49 @@ export class DoctorsService {
   async getProfile(userId: bigint) {
     const doc = await this.prisma.doctorProfiles.findUnique({
       where: { UserId: userId },
+      include: {
+        Users: {
+          select: {
+            Id: true,
+            FirstName: true,
+            LastName1: true,
+            LastName2: true,
+            Email: true,
+          },
+        },
+        DoctorProfileSpecialties: {
+          include: {
+            Specialties: {
+              select: {
+                Id: true,
+                Name: true,
+              },
+            },
+          },
+        },
+      },
     });
     if (!doc) throw new NotFoundException('Doctor profile not found');
-    return doc;
+
+    // Formatear la respuesta para el frontend
+    const fullName = `${doc.Users.FirstName || ''} ${doc.Users.LastName1 || ''} ${doc.Users.LastName2 || ''}`.trim();
+    const specialty = doc.DoctorProfileSpecialties.length > 0
+      ? doc.DoctorProfileSpecialties[0].Specialties.Name
+      : 'General';
+
+    return {
+      UserId: doc.UserId.toString(),
+      FullName: fullName,
+      Specialty: specialty,
+      Bio: doc.Bio,
+      LicenseNumber: doc.LicenseNumber,
+      YearsExperience: doc.YearsExperience,
+      VerificationStatus: doc.VerificationStatus,
+      Specialties: doc.DoctorProfileSpecialties.map(dps => ({
+        Id: dps.Specialties.Id.toString(),
+        Name: dps.Specialties.Name,
+      })),
+    };
   }
 
   async upsertProfile(userId: bigint, data: UpsertDoctorDto) {

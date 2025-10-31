@@ -13,8 +13,17 @@ export class UsersService {
 findById(id: bigint) {
   return this.prisma.users.findUnique({ where: { Id: id } });
 }
-  async updateMe(id: number, data: Partial<{ FullName: string; Phone: string }>) {
-    const user = await this.prisma.users.update({ where: { Id: id }, data });
+  async updateMe(id: number, data: Partial<{ FullName?: string; Phone?: string }>) {
+    // Preparar los datos para actualizar, filtrando undefined
+    const updateData: any = {};
+    if (data.FullName !== undefined) updateData.FullName = data.FullName;
+    if (data.Phone !== undefined) updateData.Phone = data.Phone;
+    // Note: Gender is not updated here as the schema uses GenderId (foreign key)
+
+    const user = await this.prisma.users.update({
+      where: { Id: id },
+      data: updateData
+    });
     if (!user) throw new NotFoundException('User not found');
     return user;
   }

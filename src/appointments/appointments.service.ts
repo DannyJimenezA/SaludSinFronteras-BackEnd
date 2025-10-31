@@ -147,7 +147,7 @@ export class AppointmentsService {
     const now = new Date();
     const where: any = {
       ScheduledAt: { lt: now }, // Citas anteriores a ahora
-      Status: { in: ['COMPLETED', 'NO_SHOW'] as any }, // Solo citas completadas o no show
+      Status: { notIn: ['CANCELLED'] as any }, // Excluir solo las canceladas (se muestran en otro filtro)
     };
 
     // Si es paciente, filtra por sus citas
@@ -540,5 +540,88 @@ export class AppointmentsService {
     } else {
       throw new Error('Unauthorized');
     }
+  }
+
+  async getDoctorAppointmentsByDate(userId: bigint, startDate?: string, endDate?: string) {
+    const where: any = {
+      DoctorUserId: userId,
+    };
+
+    // Si se proporciona startDate, filtrar desde esa fecha (inicio del día)
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setUTCHours(0, 0, 0, 0);
+      where.ScheduledAt = { ...where.ScheduledAt, gte: start };
+    }
+
+    // Si se proporciona endDate, filtrar hasta esa fecha (fin del día)
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setUTCHours(23, 59, 59, 999);
+      where.ScheduledAt = { ...where.ScheduledAt, lte: end };
+    }
+
+    const appointments = await this.prisma.appointments.findMany({
+      where,
+      orderBy: [{ ScheduledAt: 'asc' }],
+      include: {
+        Users_Appointments_PatientUserIdToUsers: {
+          select: {
+            Id: true,
+            FirstName: true,
+            LastName1: true,
+            LastName2: true,
+            Email: true,
+          },
+        },
+        DoctorProfiles: {
+          select: {
+            UserId: true,
+            Bio: true,
+            Users: {
+              select: {
+                Id: true,
+                FirstName: true,
+                LastName1: true,
+                LastName2: true,
+                Email: true,
+              },
+            },
+          },
+        },
+        AvailabilitySlots: {
+          select: {
+            Id: true,
+            StartAt: true,
+            EndAt: true,
+          },
+        },
+      },
+    });
+
+    // Formatea la respuesta
+    return appointments.map(appt => ({
+      id: appt.Id.toString(),
+      scheduledAt: appt.ScheduledAt,
+      durationMin: appt.DurationMin,
+      status: appt.Status,
+      modality: appt.Modality,
+      doctor: appt.DoctorProfiles?.Users ? {
+        id: appt.DoctorProfiles.Users.Id.toString(),
+        name: `${appt.DoctorProfiles.Users.FirstName || ''} ${appt.DoctorProfiles.Users.LastName1 || ''}`.trim(),
+        specialty: 'General',
+        email: appt.DoctorProfiles.Users.Email,
+      } : null,
+      patient: appt.Users_Appointments_PatientUserIdToUsers ? {
+        id: appt.Users_Appointments_PatientUserIdToUsers.Id.toString(),
+        name: `${appt.Users_Appointments_PatientUserIdToUsers.FirstName || ''} ${appt.Users_Appointments_PatientUserIdToUsers.LastName1 || ''}`.trim(),
+        email: appt.Users_Appointments_PatientUserIdToUsers.Email,
+      } : null,
+      slot: appt.AvailabilitySlots ? {
+        id: appt.AvailabilitySlots.Id.toString(),
+        startAt: appt.AvailabilitySlots.StartAt,
+        endAt: appt.AvailabilitySlots.EndAt,
+      } : null,
+    }));
   }
 }
