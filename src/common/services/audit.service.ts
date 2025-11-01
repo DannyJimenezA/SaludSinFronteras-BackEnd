@@ -65,7 +65,7 @@ export class AuditService {
       orderBy: { CreatedAt: 'desc' },
       take: limit,
       include: {
-        User: {
+        Users: {
           select: {
             Id: true,
             Email: true,

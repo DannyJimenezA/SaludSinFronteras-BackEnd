@@ -57,7 +57,7 @@ import { AdminModule } from './admin/admin.module';
     I18nModule.forRoot({
       fallbackLanguage: 'es',
       loaderOptions: {
-        path: join(__dirname, '/i18n/'),
+        path: join(process.cwd(), 'src', 'i18n'),
         watch: true,
       },
       resolvers: [

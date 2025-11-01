@@ -6,10 +6,11 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "build": "nest build && node copy-i18n.js",
+    "postbuild": "node copy-i18n.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node --max-old-space-size=512 node_modules/@nestjs/cli/bin/nest.js start",
-    "start:dev": "node --max-old-space-size=512 node_modules/@nestjs/cli/bin/nest.js start --watch",
+    "start:dev": "nest build && node copy-i18n.js && node --max-old-space-size=512 node_modules/@nestjs/cli/bin/nest.js start --watch",
     "prisma:pull": "prisma db pull && prisma generate",
     "prisma:studio": "prisma studio",
     "start:debug": "nest start --debug --watch",

@@ -76,7 +76,7 @@ export class MedicalRecordsService {
         FilesJson: dto.Files || [],
       },
       include: {
-        Patient: {
+        Users_MedicalRecords_PatientUserIdToUsers: {
           select: {
             Id: true,
             FirstName: true,
@@ -84,7 +84,7 @@ export class MedicalRecordsService {
             Email: true,
           },
         },
-        Doctor: {
+        Users_MedicalRecords_DoctorUserIdToUsers: {
           select: {
             Id: true,
             FirstName: true,
@@ -122,7 +122,7 @@ export class MedicalRecordsService {
       where: { PatientUserId: patientUserId },
       orderBy: { CreatedAt: 'desc' },
       include: {
-        Doctor: {
+        Users_MedicalRecords_DoctorUserIdToUsers: {
           select: {
             Id: true,
             FirstName: true,
@@ -130,7 +130,7 @@ export class MedicalRecordsService {
             Email: true,
           },
         },
-        Appointment: {
+        Appointments: {
           select: {
             Id: true,
             ScheduledAt: true,
@@ -158,7 +158,7 @@ export class MedicalRecordsService {
     const record = await this.prisma.medicalRecords.findUnique({
       where: { Id: id },
       include: {
-        Patient: {
+        Users_MedicalRecords_PatientUserIdToUsers: {
           select: {
             Id: true,
             FirstName: true,
@@ -166,7 +166,7 @@ export class MedicalRecordsService {
             Email: true,
           },
         },
-        Doctor: {
+        Users_MedicalRecords_DoctorUserIdToUsers: {
           select: {
             Id: true,
             FirstName: true,
@@ -174,7 +174,7 @@ export class MedicalRecordsService {
             Email: true,
           },
         },
-        Appointment: {
+        Appointments: {
           select: {
             Id: true,
             ScheduledAt: true,
@@ -275,7 +275,7 @@ export class MedicalRecordsService {
       where: { Id: id },
       data: updates,
       include: {
-        Patient: {
+        Users_MedicalRecords_PatientUserIdToUsers: {
           select: {
             Id: true,
             FirstName: true,
@@ -283,7 +283,7 @@ export class MedicalRecordsService {
             Email: true,
           },
         },
-        Doctor: {
+        Users_MedicalRecords_DoctorUserIdToUsers: {
           select: {
             Id: true,
             FirstName: true,

@@ -135,10 +135,10 @@ export class UsersManagementService {
             LicenseNumber: true,
           },
         },
-        Subscription: {
+        Subscriptions: {
           where: { IsActive: true },
           include: {
-            Plan: {
+            Plans: {
               select: {
                 Name: true,
               },
@@ -168,7 +168,7 @@ export class UsersManagementService {
         : 0,
     ]);
 
-    const activeSubscription = user.Subscription;
+    const activeSubscription = Array.isArray(user.Subscriptions) && user.Subscriptions.length > 0 ? user.Subscriptions[0] : null;
 
     return {
       id: user.Id,
@@ -189,7 +189,7 @@ export class UsersManagementService {
       totalMedicalRecords: totalMedicalRecords > 0 ? totalMedicalRecords : undefined,
       activeSubscription: activeSubscription
         ? {
-            planName: activeSubscription.Plan.Name,
+            planName: activeSubscription.Plans.Name,
             expiresAt: activeSubscription.ExpiresAt || undefined,
           }
         : undefined,

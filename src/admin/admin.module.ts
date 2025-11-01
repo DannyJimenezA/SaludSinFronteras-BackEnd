@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AdminController } from './admin.controller';
 import { DashboardService } from './services/dashboard.service';
 import { UsersManagementService } from './services/users-management.service';
+import { AppointmentStatusesService } from '../appointments/appointment-statuses.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
 /**
@@ -29,7 +30,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 @Module({
   imports: [PrismaModule],
   controllers: [AdminController],
-  providers: [DashboardService, UsersManagementService],
+  providers: [DashboardService, UsersManagementService, AppointmentStatusesService],
   exports: [DashboardService, UsersManagementService],
 })
 export class AdminModule {}

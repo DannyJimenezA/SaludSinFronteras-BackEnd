@@ -3,14 +3,23 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AppointmentStatusesService } from '../appointments/appointment-statuses.service';
 import { UpsertDoctorDto } from './dto/upsert-doctor.dto';
 import { AssignSpecialtiesDto } from './dto/assign-specialties.dto';
 
 @Injectable()
-export class DoctorsService {
-  constructor(private prisma: PrismaService) {}
+export class DoctorsService implements OnModuleInit {
+  constructor(
+    private prisma: PrismaService,
+    private statusService: AppointmentStatusesService,
+  ) {}
+
+  async onModuleInit() {
+    await this.statusService.initializeCache();
+  }
 
   async getApprovedDoctors(specialtyId?: bigint, search?: string) {
     const doctors = await this.prisma.doctorProfiles.findMany({
@@ -126,7 +135,12 @@ export class DoctorsService {
         Appointments: {
           select: {
             Id: true,
-            Status: true,
+            StatusId: true,
+            AppointmentStatuses: {
+              select: {
+                Code: true,
+              },
+            },
           },
         },
       },
@@ -136,13 +150,17 @@ export class DoctorsService {
     });
 
     // Filtrar slots disponibles (sin cita o con cita cancelada)
+    const cancelledStatusIds = await this.statusService.getStatusIds([
+      'CANCELLED',
+      'NO_SHOW',
+    ]);
     const availableSlots = slots.filter((slot) => {
       // Si no hay appointments, está disponible
       if (slot.Appointments.length === 0) return true;
 
       // Si todas las appointments están canceladas, está disponible
-      return slot.Appointments.every(
-        (apt) => apt.Status === 'CANCELLED' || apt.Status === 'NO_SHOW',
+      return slot.Appointments.every((apt) =>
+        cancelledStatusIds.includes(apt.StatusId),
       );
     });
 

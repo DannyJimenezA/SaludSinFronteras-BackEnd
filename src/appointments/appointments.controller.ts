@@ -28,6 +28,13 @@ export class AppointmentsController {
     return this.svc.getUpcoming(BigInt(req.user.sub), req.user.role, limitNum);
   }
 
+  // Obtener citas de HOY del usuario autenticado (paciente o doctor)
+  @Roles('DOCTOR','PATIENT')
+  @Get('today')
+  getToday(@Req() req: any) {
+    return this.svc.getToday(BigInt(req.user.sub), req.user.role);
+  }
+
   // Obtener citas del doctor con filtro de fecha
   @Roles('DOCTOR')
   @Get('doctor/by-date')

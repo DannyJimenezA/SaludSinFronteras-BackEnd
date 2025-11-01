@@ -23,13 +23,13 @@ export class MessagesService {
     const user = await this.prisma.users.findUnique({
       where: { Id: userId },
       include: {
-        NativeLanguage: {
+        NativeLanguages: {
           select: { Code: true },
         },
       },
     });
 
-    const userLanguageCode = user?.NativeLanguage?.Code || 'en';
+    const userLanguageCode = user?.NativeLanguages?.Code || 'en';
 
     // Obtener mensajes con traducciones y datos del remitente
     const messages = await this.prisma.messages.findMany({
@@ -81,13 +81,13 @@ export class MessagesService {
     const sender = await this.prisma.users.findUnique({
       where: { Id: userId },
       include: {
-        NativeLanguage: {
+        NativeLanguages: {
           select: { Code: true },
         },
       },
     });
 
-    const sourceLanguage = dto.Language || sender?.NativeLanguage?.Code || 'en';
+    const sourceLanguage = dto.Language || sender?.NativeLanguages?.Code || 'en';
     const normalizedSourceLang = this.translationService.normalizeLanguageCode(sourceLanguage);
 
     // Crear el mensaje original
@@ -107,7 +107,7 @@ export class MessagesService {
       include: {
         Users: {
           include: {
-            NativeLanguage: {
+            NativeLanguages: {
               select: { Code: true },
             },
           },
@@ -116,7 +116,7 @@ export class MessagesService {
     });
 
     const targetLanguages = participants
-      .map((p) => p.Users.NativeLanguage?.Code)
+      .map((p) => p.Users.NativeLanguages?.Code)
       .filter((code): code is string => !!code)
       .map((code) => this.translationService.normalizeLanguageCode(code));
 

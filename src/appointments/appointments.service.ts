@@ -1,14 +1,28 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { JobsService } from '../jobs/jobs.service'; 
+import { JobsService } from '../jobs/jobs.service';
+import { AppointmentStatusesService } from './appointment-statuses.service';
 
 @Injectable()
-export class AppointmentsService {
-  constructor(private prisma: PrismaService, private jobs: JobsService) {}
+export class AppointmentsService implements OnModuleInit {
+  constructor(
+    private prisma: PrismaService,
+    private jobs: JobsService,
+    private statusService: AppointmentStatusesService,
+  ) {}
+
+  async onModuleInit() {
+    // Initialize status cache on module startup
+    await this.statusService.initializeCache();
+  }
 
   async createForPatient(patientUserId: bigint, dto: { DoctorUserId: number; SlotId: number; Modality?: any }) {
     const doctorId = BigInt(dto.DoctorUserId);
     const slotId   = BigInt(dto.SlotId);
+
+    // Get status IDs
+    const cancelledStatusIds = await this.statusService.getStatusIds(['CANCELLED', 'NO_SHOW']);
+    const pendingStatusId = await this.statusService.getStatusId('PENDING');
 
     // valida doctor y slot
     const slot = await this.prisma.availabilitySlots.findUnique({ where: { Id: slotId } });
@@ -18,7 +32,7 @@ export class AppointmentsService {
     const exists = await this.prisma.appointments.findFirst({
       where: {
         SlotId: slotId,
-        Status: { notIn: ['CANCELLED','NO_SHOW'] as any },
+        StatusId: { notIn: cancelledStatusIds },
       },
       select: { Id: true },
     });
@@ -28,7 +42,7 @@ export class AppointmentsService {
     const collision = await this.prisma.appointments.findFirst({
       where: {
         PatientUserId: patientUserId,
-        Status: { notIn: ['CANCELLED','NO_SHOW'] as any },
+        StatusId: { notIn: cancelledStatusIds },
         ScheduledAt: { lt: slot.EndAt as any },
         // End = ScheduledAt + Duration; como guardamos Duration, comparamos así:
       },
@@ -37,13 +51,13 @@ export class AppointmentsService {
     // Para simple MVP asumimos 1 cita por slot; si colisiona con otras, puedes reforzar.
 
     const durationMin = Math.ceil((+slot.EndAt - +slot.StartAt) / 60000);
-    
+
     const appt = await this.prisma.appointments.create({
       data: {
         PatientUserId: patientUserId,
         DoctorUserId: doctorId,
         SlotId: slotId,
-        Status: 'PENDING' as any,
+        StatusId: pendingStatusId,
         ScheduledAt: slot.StartAt,
         DurationMin: durationMin,
         Modality: dto.Modality ?? 'online',
@@ -64,9 +78,11 @@ export class AppointmentsService {
 
   async getUpcoming(userId: bigint, role: 'DOCTOR'|'PATIENT', limit: number = 10) {
     const now = new Date();
+    const activeStatusIds = await this.statusService.getStatusIds(['PENDING', 'CONFIRMED']);
+
     const where: any = {
       ScheduledAt: { gte: now },
-      Status: { in: ['PENDING', 'CONFIRMED'] as any },
+      StatusId: { in: activeStatusIds },
     };
 
     // Si es paciente, filtra por sus citas
@@ -83,6 +99,14 @@ export class AppointmentsService {
       orderBy: [{ ScheduledAt: 'asc' }],
       take: limit,
       include: {
+        AppointmentStatuses: {
+          select: {
+            Id: true,
+            Code: true,
+            Name: true,
+            Color: true,
+          },
+        },
         Users_Appointments_PatientUserIdToUsers: {
           select: {
             Id: true,
@@ -122,7 +146,7 @@ export class AppointmentsService {
       id: appt.Id.toString(),
       scheduledAt: appt.ScheduledAt,
       durationMin: appt.DurationMin,
-      status: appt.Status,
+      status: appt.AppointmentStatuses?.Code || 'UNKNOWN',
       modality: appt.Modality,
       doctor: appt.DoctorProfiles?.Users ? {
         id: appt.DoctorProfiles.Users.Id.toString(),
@@ -143,11 +167,114 @@ export class AppointmentsService {
     }));
   }
 
+  // Obtener citas de HOY del usuario autenticado (doctor o paciente)
+  async getToday(userId: bigint, role: 'DOCTOR'|'PATIENT') {
+    // Calculate start and end of today in local timezone
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    // Get status IDs
+    const activeStatusIds = await this.statusService.getStatusIds(['PENDING', 'CONFIRMED']);
+
+    const where: any = {
+      ScheduledAt: {
+        gte: startOfDay,
+        lte: endOfDay
+      },
+      StatusId: { in: activeStatusIds },
+    };
+
+    // Si es paciente, filtra por sus citas
+    if (role === 'PATIENT') {
+      where.PatientUserId = userId;
+    }
+    // Si es doctor, filtra por sus citas
+    else if (role === 'DOCTOR') {
+      where.DoctorUserId = userId;
+    }
+
+    const appointments = await this.prisma.appointments.findMany({
+      where,
+      orderBy: [{ ScheduledAt: 'asc' }],
+      include: {
+        AppointmentStatuses: {
+          select: {
+            Id: true,
+            Code: true,
+            Name: true,
+            Color: true,
+          },
+        },
+        Users_Appointments_PatientUserIdToUsers: {
+          select: {
+            Id: true,
+            FirstName: true,
+            LastName1: true,
+            LastName2: true,
+            Email: true,
+          },
+        },
+        DoctorProfiles: {
+          select: {
+            UserId: true,
+            Bio: true,
+            Users: {
+              select: {
+                Id: true,
+                FirstName: true,
+                LastName1: true,
+                LastName2: true,
+                Email: true,
+              },
+            },
+          },
+        },
+        AvailabilitySlots: {
+          select: {
+            Id: true,
+            StartAt: true,
+            EndAt: true,
+          },
+        },
+      },
+    });
+
+    // Formatea la respuesta para que sea más amigable
+    return appointments.map(appt => ({
+      id: appt.Id.toString(),
+      scheduledAt: appt.ScheduledAt,
+      durationMin: appt.DurationMin,
+      status: appt.AppointmentStatuses?.Code || 'UNKNOWN',
+      modality: appt.Modality,
+      doctor: appt.DoctorProfiles?.Users ? {
+        id: appt.DoctorProfiles.Users.Id.toString(),
+        name: `${appt.DoctorProfiles.Users.FirstName || ''} ${appt.DoctorProfiles.Users.LastName1 || ''}`.trim(),
+        specialty: 'General',
+        email: appt.DoctorProfiles.Users.Email,
+      } : null,
+      patient: appt.Users_Appointments_PatientUserIdToUsers ? {
+        id: appt.Users_Appointments_PatientUserIdToUsers.Id.toString(),
+        name: `${appt.Users_Appointments_PatientUserIdToUsers.FirstName || ''} ${appt.Users_Appointments_PatientUserIdToUsers.LastName1 || ''}`.trim(),
+        email: appt.Users_Appointments_PatientUserIdToUsers.Email,
+      } : null,
+      slot: appt.AvailabilitySlots ? {
+        id: appt.AvailabilitySlots.Id.toString(),
+        startAt: appt.AvailabilitySlots.StartAt,
+        endAt: appt.AvailabilitySlots.EndAt,
+      } : null,
+    }));
+  }
+
   async getPast(userId: bigint, role: 'DOCTOR'|'PATIENT', limit: number = 20) {
     const now = new Date();
+
+    // Get status IDs
+    const cancelledStatusId = await this.statusService.getStatusId('CANCELLED');
+
     const where: any = {
       ScheduledAt: { lt: now }, // Citas anteriores a ahora
-      Status: { notIn: ['CANCELLED'] as any }, // Excluir solo las canceladas (se muestran en otro filtro)
+      StatusId: { notIn: [cancelledStatusId] }, // Excluir solo las canceladas (se muestran en otro filtro)
     };
 
     // Si es paciente, filtra por sus citas
@@ -164,6 +291,14 @@ export class AppointmentsService {
       orderBy: [{ ScheduledAt: 'desc' }], // Más recientes primero
       take: limit,
       include: {
+        AppointmentStatuses: {
+          select: {
+            Id: true,
+            Code: true,
+            Name: true,
+            Color: true,
+          },
+        },
         Users_Appointments_PatientUserIdToUsers: {
           select: {
             Id: true,
@@ -203,7 +338,7 @@ export class AppointmentsService {
       id: appt.Id.toString(),
       scheduledAt: appt.ScheduledAt,
       durationMin: appt.DurationMin,
-      status: appt.Status,
+      status: appt.AppointmentStatuses?.Code || 'UNKNOWN',
       modality: appt.Modality,
       doctor: appt.DoctorProfiles?.Users ? {
         id: appt.DoctorProfiles.Users.Id.toString(),
@@ -225,8 +360,11 @@ export class AppointmentsService {
   }
 
   async getCancelled(userId: bigint, role: 'DOCTOR'|'PATIENT', limit: number = 20) {
+    // Get status ID
+    const cancelledStatusId = await this.statusService.getStatusId('CANCELLED');
+
     const where: any = {
-      Status: 'CANCELLED' as any,
+      StatusId: cancelledStatusId,
     };
 
     // Si es paciente, filtra por sus citas
@@ -243,6 +381,14 @@ export class AppointmentsService {
       orderBy: [{ UpdatedAt: 'desc' }], // Más recientemente canceladas primero
       take: limit,
       include: {
+        AppointmentStatuses: {
+          select: {
+            Id: true,
+            Code: true,
+            Name: true,
+            Color: true,
+          },
+        },
         Users_Appointments_PatientUserIdToUsers: {
           select: {
             Id: true,
@@ -290,7 +436,7 @@ export class AppointmentsService {
       id: appt.Id.toString(),
       scheduledAt: appt.ScheduledAt,
       durationMin: appt.DurationMin,
-      status: appt.Status,
+      status: appt.AppointmentStatuses?.Code || 'UNKNOWN',
       modality: appt.Modality,
       cancelReason: appt.CancelReason,
       cancelledBy: appt.Users_Appointments_CancelledByUserIdToUsers ? {
@@ -341,6 +487,14 @@ export class AppointmentsService {
       skip,
       take: limit,
       include: {
+        AppointmentStatuses: {
+          select: {
+            Id: true,
+            Code: true,
+            Name: true,
+            Color: true,
+          },
+        },
         Users_Appointments_PatientUserIdToUsers: {
           select: {
             Id: true,
@@ -388,7 +542,7 @@ export class AppointmentsService {
       id: appt.Id.toString(),
       scheduledAt: appt.ScheduledAt,
       durationMin: appt.DurationMin,
-      status: appt.Status,
+      status: appt.AppointmentStatuses?.Code || 'UNKNOWN',
       modality: appt.Modality,
       cancelReason: appt.CancelReason,
       cancelledBy: appt.Users_Appointments_CancelledByUserIdToUsers ? {
@@ -429,13 +583,29 @@ export class AppointmentsService {
     const where: any = {};
     if (param.doctorId)  where.DoctorUserId  = BigInt(param.doctorId);
     if (param.patientId) where.PatientUserId = BigInt(param.patientId);
-    if (param.status)    where.Status        = param.status as any;
+
+    // Convert status code to ID if provided
+    if (param.status) {
+      const statusId = await this.statusService.getStatusId(param.status as any);
+      where.StatusId = statusId;
+    }
+
     if (param.from) (where.ScheduledAt ??= {}).gte = new Date(param.from);
     if (param.to)   (where.ScheduledAt ??= {}).lte = new Date(param.to);
 
     return this.prisma.appointments.findMany({
       where,
       orderBy: [{ ScheduledAt: 'desc' }],
+      include: {
+        AppointmentStatuses: {
+          select: {
+            Id: true,
+            Code: true,
+            Name: true,
+            Color: true,
+          },
+        },
+      },
     });
   }
 
@@ -451,6 +621,10 @@ export class AppointmentsService {
     const appt = await this.prisma.appointments.findUnique({ where: { Id: id } });
     if (!appt) throw new NotFoundException('Appointment not found');
 
+    // Convert status code to ID
+    const statusId = await this.statusService.getStatusId(data.Status);
+    const cancelledStatusId = await this.statusService.getStatusId('CANCELLED');
+
     // reglas simples: PACIENTE puede cancelar su cita; DOCTOR puede confirmar/cancelar/completar; ADMIN todo
     if (role === 'PATIENT') {
       if (appt.PatientUserId !== actorId) throw new ForbiddenException('Forbidden');
@@ -463,9 +637,9 @@ export class AppointmentsService {
     return this.prisma.appointments.update({
       where: { Id: id },
       data: {
-        Status: data.Status,
+        StatusId: statusId,
         CancelReason: data.CancelReason ?? null,
-        CancelledByUserId: data.Status === 'CANCELLED' ? actorId : null,
+        CancelledByUserId: statusId === cancelledStatusId ? actorId : null,
       },
     });
   }
@@ -476,9 +650,23 @@ export class AppointmentsService {
     role: string,
     cancelReason?: string,
   ) {
+    // Get status IDs
+    const cancelledStatusId = await this.statusService.getStatusId('CANCELLED');
+    const completedStatusId = await this.statusService.getStatusId('COMPLETED');
+
     // Buscar la cita
     const appointment = await this.prisma.appointments.findUnique({
       where: { Id: id },
+      include: {
+        AppointmentStatuses: {
+          select: {
+            Id: true,
+            Code: true,
+            Name: true,
+            Color: true,
+          },
+        },
+      },
     });
 
     if (!appointment) {
@@ -496,11 +684,11 @@ export class AppointmentsService {
     }
 
     // Verificar que la cita no esté ya cancelada o completada
-    if (appointment.Status === 'CANCELLED') {
+    if (appointment.StatusId === cancelledStatusId) {
       throw new BadRequestException('Appointment is already cancelled');
     }
 
-    if (appointment.Status === 'COMPLETED') {
+    if (appointment.StatusId === completedStatusId) {
       throw new BadRequestException('Cannot cancel a completed appointment');
     }
 
@@ -508,10 +696,20 @@ export class AppointmentsService {
     const updatedAppointment = await this.prisma.appointments.update({
       where: { Id: id },
       data: {
-        Status: 'CANCELLED',
+        StatusId: cancelledStatusId,
         CancelledByUserId: userId,
         CancelReason: cancelReason || 'No reason provided',
         UpdatedAt: new Date(),
+      },
+      include: {
+        AppointmentStatuses: {
+          select: {
+            Id: true,
+            Code: true,
+            Name: true,
+            Color: true,
+          },
+        },
       },
     });
 
@@ -519,7 +717,7 @@ export class AppointmentsService {
       message: 'Appointment cancelled successfully',
       appointment: {
         id: updatedAppointment.Id.toString(),
-        status: updatedAppointment.Status,
+        status: updatedAppointment.AppointmentStatuses?.Code || 'UNKNOWN',
         cancelReason: updatedAppointment.CancelReason,
       },
     };
@@ -565,6 +763,14 @@ export class AppointmentsService {
       where,
       orderBy: [{ ScheduledAt: 'asc' }],
       include: {
+        AppointmentStatuses: {
+          select: {
+            Id: true,
+            Code: true,
+            Name: true,
+            Color: true,
+          },
+        },
         Users_Appointments_PatientUserIdToUsers: {
           select: {
             Id: true,
@@ -604,7 +810,7 @@ export class AppointmentsService {
       id: appt.Id.toString(),
       scheduledAt: appt.ScheduledAt,
       durationMin: appt.DurationMin,
-      status: appt.Status,
+      status: appt.AppointmentStatuses?.Code || 'UNKNOWN',
       modality: appt.Modality,
       doctor: appt.DoctorProfiles?.Users ? {
         id: appt.DoctorProfiles.Users.Id.toString(),

@@ -26,13 +26,22 @@ model AppointmentNotes {
   @@index([AppointmentId], map: "IX_AppointmentNotes_Appt")
 }
 
+model AppointmentStatuses {
+  Id           BigInt         @id @default(autoincrement())
+  Code         String         @unique(map: "UQ_AppointmentStatuses_Code") @db.VarChar(20)
+  Name         String         @db.VarChar(50)
+  Description  String?        @db.VarChar(255)
+  Color        String?        @db.VarChar(7)
+  Appointments Appointments[]
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model Appointments {
   Id                                          BigInt                 @id @default(autoincrement())
   PatientUserId                               BigInt
   DoctorUserId                                BigInt
   SlotId                                      BigInt?
-  Status                                      Appointments_Status
+  StatusId                                    BigInt
   ScheduledAt                                 DateTime?
   DurationMin                                 Int?
   PriceCents                                  Int?
@@ -45,17 +54,19 @@ model Appointments {
   CreatedAt                                   DateTime               @default(now())
   UpdatedAt                                   DateTime               @default(now())
   AppointmentNotes                            AppointmentNotes[]
+  AppointmentStatuses                         AppointmentStatuses    @relation(fields: [StatusId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Appt_Status")
   Users_Appointments_CancelledByUserIdToUsers Users?                 @relation("Appointments_CancelledByUserIdToUsers", fields: [CancelledByUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Appt_CancelledBy")
   Users_Appointments_CreatedByUserIdToUsers   Users?                 @relation("Appointments_CreatedByUserIdToUsers", fields: [CreatedByUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Appt_Creator")
   DoctorProfiles                              DoctorProfiles         @relation(fields: [DoctorUserId], references: [UserId], onDelete: NoAction, onUpdate: NoAction, map: "FK_Appt_Doctor")
   Users_Appointments_PatientUserIdToUsers     Users                  @relation("Appointments_PatientUserIdToUsers", fields: [PatientUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Appt_Patient")
   AvailabilitySlots                           AvailabilitySlots?     @relation(fields: [SlotId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Appt_Slot")
   Conversations                               Conversations?
+  MedicalRecords                              MedicalRecords[]
   Payments                                    Payments?
   VideoSessions                               VideoSessions?
-  MedicalRecords                              MedicalRecords[]
 
   @@index([CreatedByUserId], map: "FK_Appt_Creator")
+  @@index([StatusId], map: "IX_Appt_Status")
   @@index([DoctorUserId, ScheduledAt], map: "IX_Appointments_Doctor_Scheduled")
   @@index([PatientUserId, ScheduledAt], map: "IX_Appointments_Patient_Scheduled")
   @@index([SlotId], map: "IX_Appointments_Slot")
@@ -158,6 +169,21 @@ model CountryDrugs {
   @@index([DrugId], map: "IX_CD_Drug")
 }
 
+model DataAccessLogs {
+  Id           BigInt   @id @default(autoincrement())
+  UserId       BigInt
+  ResourceType String   @db.VarChar(60)
+  ResourceId   BigInt
+  Action       String   @db.VarChar(40)
+  IpAddress    String?  @db.VarChar(45)
+  UserAgent    String?  @db.VarChar(255)
+  CreatedAt    DateTime @default(now())
+  Users        Users    @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_DAL_User")
+
+  @@index([ResourceType, ResourceId], map: "IX_DAL_Resource")
+  @@index([UserId, CreatedAt], map: "IX_DAL_User_Time")
+}
+
 model DoctorProfileSpecialties {
   DoctorUserId   BigInt
   SpecialtyId    BigInt
@@ -177,16 +203,13 @@ model DoctorProfiles {
   MedicalSchool            String?                    @db.VarChar(160)
   YearsExperience          Int?
   Bio                      String?                    @db.LongText
-
-  // 🆕 Campos de verificación (Fase 4)
-  CertificationDocuments   String?                    @db.LongText // JSON array de URLs de documentos
-  VerificationNotes        String?                    @db.LongText // Notas del admin sobre la verificación
-  VerifiedAt               DateTime?                  // Fecha de verificación
-  VerifiedByAdminId        BigInt?                    // ID del admin que verificó
-  RejectionReason          String?                    @db.LongText // Razón de rechazo si aplica
-
   CreatedAt                DateTime                   @default(now())
   UpdatedAt                DateTime                   @default(now())
+  CertificationDocuments   String?                    @db.LongText
+  RejectionReason          String?                    @db.LongText
+  VerificationNotes        String?                    @db.LongText
+  VerifiedAt               DateTime?
+  VerifiedByAdminId        BigInt?
   AppointmentNotes         AppointmentNotes[]
   Appointments             Appointments[]
   AvailabilitySlots        AvailabilitySlots[]
@@ -222,6 +245,41 @@ model Files {
   Messages    Messages[]
 
   @@index([OwnerUserId], map: "IX_Files_Owner")
+}
+
+model Genders {
+  Id    BigInt  @id @default(autoincrement())
+  Code  String  @unique @db.VarChar(20)
+  Name  String  @db.VarChar(50)
+  Users Users[]
+}
+
+model IdentificationTypes {
+  Id    BigInt  @id @default(autoincrement())
+  Code  String  @unique @db.VarChar(20)
+  Name  String  @db.VarChar(100)
+  Users Users[]
+}
+
+model MedicalRecords {
+  Id                                        BigInt        @id @default(autoincrement())
+  PatientUserId                             BigInt
+  DoctorUserId                              BigInt
+  AppointmentId                             BigInt?
+  DiagnosisEnc                              String        @db.LongText
+  PrescriptionsEnc                          String?       @db.LongText
+  RecommendationsEnc                        String?       @db.LongText
+  FilesJson                                 Json?
+  EncryptionIV                              String        @db.VarChar(32)
+  CreatedAt                                 DateTime      @default(now())
+  UpdatedAt                                 DateTime      @default(now())
+  Appointments                              Appointments? @relation(fields: [AppointmentId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_MR_Appointment")
+  Users_MedicalRecords_DoctorUserIdToUsers  Users         @relation("MedicalRecords_DoctorUserIdToUsers", fields: [DoctorUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_MR_Doctor")
+  Users_MedicalRecords_PatientUserIdToUsers Users         @relation("MedicalRecords_PatientUserIdToUsers", fields: [PatientUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_MR_Patient")
+
+  @@index([AppointmentId], map: "IX_MR_Appointment")
+  @@index([DoctorUserId], map: "IX_MR_Doctor")
+  @@index([PatientUserId], map: "IX_MR_Patient")
 }
 
 model MessageTranslations {
@@ -264,6 +322,20 @@ model Messages {
   @@index([ReplyToMessageId], map: "IX_Msg_ReplyTo")
 }
 
+model Nationalities {
+  Id    BigInt  @id @default(autoincrement())
+  Code  String  @unique @db.VarChar(10)
+  Name  String  @db.VarChar(100)
+  Users Users[]
+}
+
+model NativeLanguages {
+  Id    BigInt  @id @default(autoincrement())
+  Code  String  @unique @db.VarChar(10)
+  Name  String  @db.VarChar(100)
+  Users Users[]
+}
+
 model Payments {
   Id            BigInt          @id @default(autoincrement())
   AppointmentId BigInt          @unique(map: "UQ_Pay_Appt")
@@ -278,6 +350,18 @@ model Payments {
   Refunds       Refunds[]
 }
 
+model Plans {
+  Id              BigInt          @id @default(autoincrement())
+  Name            String          @unique @db.VarChar(100)
+  PriceCents      Int
+  Currency        String          @default("USD") @db.Char(3)
+  FeaturesJson    Json
+  MaxAppointments Int?
+  IsActive        Boolean         @default(dbgenerated("b'1'")) @db.Bit(1)
+  CreatedAt       DateTime        @default(now())
+  Subscriptions   Subscriptions[]
+}
+
 model Refunds {
   Id          BigInt   @id @default(autoincrement())
   PaymentId   BigInt
@@ -289,10 +373,34 @@ model Refunds {
   @@index([PaymentId], map: "IX_Refund_Payment")
 }
 
+model ResidenceCountries {
+  Id    BigInt  @id @default(autoincrement())
+  Code  String  @unique @db.VarChar(10)
+  Name  String  @db.VarChar(100)
+  Users Users[]
+}
+
 model Specialties {
   Id                       BigInt                     @id @default(autoincrement())
   Name                     String                     @unique(map: "Name") @db.VarChar(120)
   DoctorProfileSpecialties DoctorProfileSpecialties[]
+}
+
+model Subscriptions {
+  Id        BigInt    @id @default(autoincrement())
+  UserId    BigInt    @unique
+  PlanId    BigInt
+  StartAt   DateTime  @default(now())
+  ExpiresAt DateTime?
+  IsActive  Boolean   @default(dbgenerated("b'1'")) @db.Bit(1)
+  AutoRenew Boolean   @default(dbgenerated("b'0'")) @db.Bit(1)
+  CreatedAt DateTime  @default(now())
+  UpdatedAt DateTime  @default(now())
+  Plans     Plans     @relation(fields: [PlanId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Sub_Plan")
+  Users     Users     @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Sub_User")
+
+  @@index([PlanId], map: "IX_Sub_Plan")
+  @@index([UserId], map: "IX_Sub_User")
 }
 
 model TranscriptionSegments {
@@ -324,32 +432,28 @@ model UserLanguages {
 
 model Users {
   Id                                                 BigInt                     @id @default(autoincrement())
+  Role                                               String                     @db.VarChar(20)
+  Email                                              String                     @unique(map: "Email") @db.VarChar(255)
+  Phone                                              String?                    @db.VarChar(40)
+  FullName                                           String?                    @db.VarChar(160)
+  DateOfBirth                                        DateTime?                  @db.Date
+  Gender                                             String?                    @db.VarChar(20)
+  PrimaryLanguage                                    String?                    @db.VarChar(10)
+  CountryId                                          BigInt?
+  Timezone                                           String?                    @db.VarChar(64)
+  Status                                             String?                    @default("active") @db.VarChar(20)
+  CreatedAt                                          DateTime                   @default(now())
+  UpdatedAt                                          DateTime                   @default(now())
   IdentificationTypeId                               BigInt?
   Identification                                     String?                    @unique(map: "UQ_Users_Identification") @db.VarChar(50)
   FirstName                                          String?                    @db.VarChar(80)
   LastName1                                          String?                    @db.VarChar(80)
   LastName2                                          String?                    @db.VarChar(80)
   GenderId                                           BigInt?
-  DateOfBirth                                        DateTime?                  @db.Date
   NativeLanguageId                                   BigInt?
-  Phone                                              String?                    @db.VarChar(40)
   NationalityId                                      BigInt?
   ResidenceCountryId                                 BigInt?
-  Email                                              String                     @unique(map: "Email") @db.VarChar(255)
-  IsActive                                           Boolean                    @default(false) @db.Bit(1)
-  Role                                               String                     @db.VarChar(20)
-  Timezone                                           String?                    @db.VarChar(64)
-  CreatedAt                                          DateTime                   @default(now())
-  UpdatedAt                                          DateTime                   @default(now())
-
-  // Deprecated fields (mantener por compatibilidad temporal)
-  FullName                                           String?                    @db.VarChar(160)
-  Gender                                             String?                    @db.VarChar(20)
-  PrimaryLanguage                                    String?                    @db.VarChar(10)
-  CountryId                                          BigInt?
-  Status                                             String?                    @default("active") @db.VarChar(20)
-
-  // Relaciones
+  IsActive                                           Boolean                    @default(dbgenerated("b'0'")) @db.Bit(1)
   Appointments_Appointments_CancelledByUserIdToUsers Appointments[]             @relation("Appointments_CancelledByUserIdToUsers")
   Appointments_Appointments_CreatedByUserIdToUsers   Appointments[]             @relation("Appointments_CreatedByUserIdToUsers")
   Appointments_Appointments_PatientUserIdToUsers     Appointments[]             @relation("Appointments_PatientUserIdToUsers")
@@ -357,33 +461,54 @@ model Users {
   ConsentLogs                                        ConsentLogs[]
   ConversationParticipants                           ConversationParticipants[]
   Conversations                                      Conversations[]
+  DataAccessLogs                                     DataAccessLogs[]
   DoctorProfiles                                     DoctorProfiles?
   Files                                              Files[]
+  MedicalRecords_MedicalRecords_DoctorUserIdToUsers  MedicalRecords[]           @relation("MedicalRecords_DoctorUserIdToUsers")
+  MedicalRecords_MedicalRecords_PatientUserIdToUsers MedicalRecords[]           @relation("MedicalRecords_PatientUserIdToUsers")
   Messages                                           Messages[]
+  Subscriptions                                      Subscriptions?
   TranscriptionSegments                              TranscriptionSegments[]
   UserLanguages                                      UserLanguages[]
   Countries                                          Countries?                 @relation(fields: [CountryId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_Country")
-  IdentificationType                                 IdentificationTypes?       @relation(fields: [IdentificationTypeId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_IdentificationType")
-  GenderRelation                                     Genders?                   @relation(fields: [GenderId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_Gender")
-  NativeLanguage                                     NativeLanguages?           @relation(fields: [NativeLanguageId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_NativeLanguage")
-  Nationality                                        Nationalities?             @relation(fields: [NationalityId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_Nationality")
-  ResidenceCountry                                   ResidenceCountries?        @relation(fields: [ResidenceCountryId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_ResidenceCountry")
+  Genders                                            Genders?                   @relation(fields: [GenderId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_Gender")
+  IdentificationTypes                                IdentificationTypes?       @relation(fields: [IdentificationTypeId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_IdentificationType")
+  Nationalities                                      Nationalities?             @relation(fields: [NationalityId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_Nationality")
+  NativeLanguages                                    NativeLanguages?           @relation(fields: [NativeLanguageId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_NativeLanguage")
+  ResidenceCountries                                 ResidenceCountries?        @relation(fields: [ResidenceCountryId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_ResidenceCountry")
   UsersAuth                                          UsersAuth?
+  UsersMfa                                           UsersMfa?
   VideoSessionParticipants                           VideoSessionParticipants[]
 
-  // 🆕 Nuevas relaciones (Fase 1)
-  MedicalRecords_Patient                             MedicalRecords[]           @relation("MedicalRecords_Patient")
-  MedicalRecords_Doctor                              MedicalRecords[]           @relation("MedicalRecords_Doctor")
-  Subscription                                       Subscriptions?
-  MfaSettings                                        UsersMfa?
-  DataAccessLogs                                     DataAccessLogs[]
-
   @@index([CountryId], map: "IX_Users_CountryId")
-  @@index([IdentificationTypeId], map: "IX_Users_IdentificationTypeId")
   @@index([GenderId], map: "IX_Users_GenderId")
-  @@index([NativeLanguageId], map: "IX_Users_NativeLanguageId")
+  @@index([IdentificationTypeId], map: "IX_Users_IdentificationTypeId")
   @@index([NationalityId], map: "IX_Users_NationalityId")
+  @@index([NativeLanguageId], map: "IX_Users_NativeLanguageId")
   @@index([ResidenceCountryId], map: "IX_Users_ResidenceCountryId")
+}
+
+model UsersAuth {
+  UserId                 BigInt    @id
+  PasswordHash           String    @db.VarChar(120)
+  CreatedAt              DateTime  @default(now())
+  EmailVerificationToken String?   @db.VarChar(255)
+  EmailVerifiedAt        DateTime?
+  PasswordResetToken     String?   @db.VarChar(255)
+  PasswordResetExpiry    DateTime?
+  BanReason              String?   @db.LongText
+  IsBanned               Boolean   @default(dbgenerated("b'0'")) @db.Bit(1)
+  LastLogin              DateTime?
+  Users                  Users     @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_UsersAuth_User")
+}
+
+model UsersMfa {
+  UserId      BigInt    @id
+  Secret      String    @db.VarChar(255)
+  IsEnabled   Boolean   @default(dbgenerated("b'0'")) @db.Bit(1)
+  BackupCodes Json?
+  EnabledAt   DateTime?
+  Users       Users     @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_UsersMfa_User")
 }
 
 model VideoSessionParticipants {
@@ -412,144 +537,6 @@ model VideoSessions {
   Appointments             Appointments               @relation(fields: [AppointmentId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_VS_Appt")
 }
 
-model UsersAuth {
-  UserId                BigInt    @id
-  PasswordHash          String    @db.VarChar(120)
-  CreatedAt             DateTime  @default(now())
-  EmailVerificationToken String?   @db.VarChar(255)
-  EmailVerifiedAt       DateTime?
-  PasswordResetToken    String?   @db.VarChar(255)
-  PasswordResetExpiry   DateTime?
-
-  // 🆕 Campos de gestión (Fase 5)
-  IsBanned              Boolean   @default(false) @db.Bit(1)
-  BanReason             String?   @db.LongText
-  LastLogin             DateTime?
-
-  Users                 Users     @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_UsersAuth_User")
-}
-
-model IdentificationTypes {
-  Id    BigInt @id @default(autoincrement())
-  Code  String @unique @db.VarChar(20)
-  Name  String @db.VarChar(100)
-  Users Users[]
-}
-
-model Genders {
-  Id    BigInt @id @default(autoincrement())
-  Code  String @unique @db.VarChar(20)
-  Name  String @db.VarChar(50)
-  Users Users[]
-}
-
-model NativeLanguages {
-  Id    BigInt @id @default(autoincrement())
-  Code  String @unique @db.VarChar(10)
-  Name  String @db.VarChar(100)
-  Users Users[]
-}
-
-model Nationalities {
-  Id    BigInt @id @default(autoincrement())
-  Code  String @unique @db.VarChar(10)
-  Name  String @db.VarChar(100)
-  Users Users[]
-}
-
-model ResidenceCountries {
-  Id    BigInt @id @default(autoincrement())
-  Code  String @unique @db.VarChar(10)
-  Name  String @db.VarChar(100)
-  Users Users[]
-}
-
-// 🆕 NUEVAS TABLAS PARA FASE 1
-
-// Tabla de Historiales Médicos (con cifrado)
-model MedicalRecords {
-  Id                 BigInt        @id @default(autoincrement())
-  PatientUserId      BigInt
-  DoctorUserId       BigInt
-  AppointmentId      BigInt?
-  DiagnosisEnc       String        @db.LongText
-  PrescriptionsEnc   String?       @db.LongText
-  RecommendationsEnc String?       @db.LongText
-  FilesJson          Json?
-  EncryptionIV       String        @db.VarChar(32)
-  CreatedAt          DateTime      @default(now())
-  UpdatedAt          DateTime      @default(now())
-
-  Patient            Users         @relation("MedicalRecords_Patient", fields: [PatientUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_MR_Patient")
-  Doctor             Users         @relation("MedicalRecords_Doctor", fields: [DoctorUserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_MR_Doctor")
-  Appointment        Appointments? @relation(fields: [AppointmentId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_MR_Appointment")
-
-  @@index([PatientUserId], map: "IX_MR_Patient")
-  @@index([DoctorUserId], map: "IX_MR_Doctor")
-  @@index([AppointmentId], map: "IX_MR_Appointment")
-}
-
-// Tabla de Planes de Suscripción
-model Plans {
-  Id              BigInt          @id @default(autoincrement())
-  Name            String          @unique @db.VarChar(100)
-  PriceCents      Int
-  Currency        String          @default("USD") @db.Char(3)
-  FeaturesJson    Json
-  MaxAppointments Int?
-  IsActive        Boolean         @default(true) @db.Bit(1)
-  CreatedAt       DateTime        @default(now())
-
-  Subscriptions   Subscriptions[]
-}
-
-// Tabla de Suscripciones de Usuarios
-model Subscriptions {
-  Id         BigInt   @id @default(autoincrement())
-  UserId     BigInt   @unique
-  PlanId     BigInt
-  StartAt    DateTime @default(now())
-  ExpiresAt  DateTime?
-  IsActive   Boolean  @default(true) @db.Bit(1)
-  AutoRenew  Boolean  @default(false) @db.Bit(1)
-  CreatedAt  DateTime @default(now())
-  UpdatedAt  DateTime @default(now())
-
-  User       Users    @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Sub_User")
-  Plan       Plans    @relation(fields: [PlanId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Sub_Plan")
-
-  @@index([UserId], map: "IX_Sub_User")
-  @@index([PlanId], map: "IX_Sub_Plan")
-}
-
-// Tabla de MFA (Autenticación Multi-Factor)
-model UsersMfa {
-  UserId      BigInt    @id
-  Secret      String    @db.VarChar(255)
-  IsEnabled   Boolean   @default(false) @db.Bit(1)
-  BackupCodes Json?
-  EnabledAt   DateTime?
-
-  User        Users     @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_UsersMfa_User")
-}
-
-// Tabla de Logs de Acceso a Datos (Auditoría HIPAA/GDPR)
-model DataAccessLogs {
-  Id           BigInt   @id @default(autoincrement())
-  UserId       BigInt
-  ResourceType String   @db.VarChar(60)
-  ResourceId   BigInt
-  Action       String   @db.VarChar(40)
-  IpAddress    String?  @db.VarChar(45)
-  UserAgent    String?  @db.VarChar(255)
-  CreatedAt    DateTime @default(now())
-
-  User         Users    @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_DAL_User")
-
-  @@index([UserId, CreatedAt], map: "IX_DAL_User_Time")
-  @@index([ResourceType, ResourceId], map: "IX_DAL_Resource")
-}
-
 enum ConsentLogs_Type {
   privacy
   telemedicine
@@ -560,15 +547,6 @@ enum VideoSessionParticipants_Role {
   doctor
   patient
   admin
-}
-
-enum Appointments_Status {
-  PENDING
-  CONFIRMED
-  CANCELLED
-  COMPLETED
-  RESCHEDULED
-  NO_SHOW
 }
 
 enum Payments_Status {

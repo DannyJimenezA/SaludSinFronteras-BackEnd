@@ -1,20 +1,64 @@
 // src/users/users.controller.ts
-import { Controller, Get, Patch, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsNotEmpty, MinLength } from 'class-validator';
 
 class UpdateMeDto {
   @IsOptional()
   @IsString()
-  FullName?: string;
+  FirstName?: string;
+
+  @IsOptional()
+  @IsString()
+  LastName1?: string;
+
+  @IsOptional()
+  @IsString()
+  LastName2?: string;
 
   @IsOptional()
   @IsString()
   Phone?: string;
 
-  // Note: Gender is not included as the schema uses GenderId (foreign key)
-  // To update gender, you would need to provide GenderId with a valid foreign key
+  @IsOptional()
+  @IsString()
+  Gender?: string;
+
+  @IsOptional()
+  @IsString()
+  DateOfBirth?: string;
+
+  @IsOptional()
+  @IsString()
+  Identification?: string;
+
+  @IsOptional()
+  @IsString()
+  NationalityId?: string;
+
+  @IsOptional()
+  @IsString()
+  ResidenceCountryId?: string;
+
+  @IsOptional()
+  @IsString()
+  PrimaryLanguage?: string;
+
+  @IsOptional()
+  @IsString()
+  Timezone?: string;
+}
+
+class ChangePasswordDto {
+  @IsNotEmpty()
+  @IsString()
+  currentPassword: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @MinLength(8)
+  newPassword: string;
 }
 
 @Controller('users')
@@ -32,5 +76,11 @@ async me(@Req() req: any) {
   @Patch('me')
   async updateMe(@Req() req: any, @Body() dto: UpdateMeDto) {
     return this.users.updateMe(req.user.sub, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
+    return this.users.changePassword(req.user.sub, dto.currentPassword, dto.newPassword);
   }
 }

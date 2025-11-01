@@ -1,5 +1,6 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AppointmentStatusesService } from '../appointments/appointment-statuses.service';
 
 function toUtcDate(s: string) {
   const d = new Date(s);
@@ -8,8 +9,15 @@ function toUtcDate(s: string) {
 }
 
 @Injectable()
-export class AvailabilityService {
-  constructor(private prisma: PrismaService) {}
+export class AvailabilityService implements OnModuleInit {
+  constructor(
+    private prisma: PrismaService,
+    private statusService: AppointmentStatusesService,
+  ) {}
+
+  async onModuleInit() {
+    await this.statusService.initializeCache();
+  }
 
   async createSlot(doctorUserId: bigint, dto: { StartAt: string; EndAt: string; RRule?: string; IsRecurring?: string }) {
     // verificar doctor dueño
@@ -58,8 +66,9 @@ export class AvailabilityService {
     if (slot.DoctorUserId !== doctorUserId) throw new ForbiddenException('Cannot delete slot of another doctor');
 
     // blocking: si ya hay cita en este slot, no borrar (solo ejemplo simple)
+    const cancelledStatusIds = await this.statusService.getStatusIds(['CANCELLED', 'NO_SHOW']);
     const appt = await this.prisma.appointments.findFirst({
-      where: { SlotId: slotId, Status: { notIn: ['CANCELLED', 'NO_SHOW' ] as any } },
+      where: { SlotId: slotId, StatusId: { notIn: cancelledStatusIds } },
       select: { Id: true },
     });
     if (appt) throw new BadRequestException('Slot has appointments');

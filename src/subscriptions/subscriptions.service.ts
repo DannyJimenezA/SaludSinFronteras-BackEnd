@@ -85,7 +85,7 @@ export class SubscriptionsService {
         AutoRenew: plan.PriceCents > 0, // Solo auto-renovar planes de pago
       },
       include: {
-        Plan: true,
+        Plans: true,
       },
     });
 
@@ -108,7 +108,7 @@ export class SubscriptionsService {
         IsActive: true,
       },
       include: {
-        Plan: true,
+        Plans: true,
       },
     });
 
@@ -132,7 +132,7 @@ export class SubscriptionsService {
           AutoRenew: false,
         },
         include: {
-          Plan: true,
+          Plans: true,
         },
       });
     }
@@ -147,7 +147,7 @@ export class SubscriptionsService {
       subscription = await this.prisma.subscriptions.update({
         where: { Id: subscription.Id },
         data: { IsActive: false },
-        include: { Plan: true },
+        include: { Plans: true },
       });
 
       // Asignar plan Basic automáticamente
@@ -161,7 +161,7 @@ export class SubscriptionsService {
           IsActive: true,
           AutoRenew: false,
         },
-        include: { Plan: true },
+        include: { Plans: true },
       });
     }
 
@@ -204,7 +204,7 @@ export class SubscriptionsService {
         UpdatedAt: new Date(),
       },
       include: {
-        Plan: true,
+        Plans: true,
       },
     });
 
@@ -224,7 +224,7 @@ export class SubscriptionsService {
       where: { UserId: userId },
       orderBy: { CreatedAt: 'desc' },
       include: {
-        Plan: true,
+        Plans: true,
       },
     });
 

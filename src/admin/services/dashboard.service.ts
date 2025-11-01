@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AppointmentStatusesService } from '../../appointments/appointment-statuses.service';
 import {
   DashboardStatsDto,
   AppointmentsByStatusDto,
@@ -21,8 +22,15 @@ import {
  * - Logs de auditoría recientes
  */
 @Injectable()
-export class DashboardService {
-  constructor(private prisma: PrismaService) {}
+export class DashboardService implements OnModuleInit {
+  constructor(
+    private prisma: PrismaService,
+    private statusService: AppointmentStatusesService,
+  ) {}
+
+  async onModuleInit() {
+    await this.statusService.initializeCache();
+  }
 
   /**
    * Obtener estadísticas generales del dashboard
@@ -60,7 +68,7 @@ export class DashboardService {
 
       // Citas por estado
       this.prisma.appointments.groupBy({
-        by: ['Status'],
+        by: ['StatusId'],
         _count: true,
       }),
 
@@ -125,23 +133,34 @@ export class DashboardService {
       {} as Record<string, number>,
     );
 
+    // Obtener todos los estados para mapear IDs a códigos
+    const allStatuses = await this.prisma.appointmentStatuses.findMany({
+      select: { Id: true, Code: true },
+    });
+    const statusIdToCode = new Map(allStatuses.map(s => [s.Id, s.Code]));
+
     // Procesar citas por estado
     const appointmentStatusMap = appointmentsByStatus.reduce(
       (acc, item) => {
-        acc[item.Status] = item._count;
+        const code = statusIdToCode.get(item.StatusId) || 'UNKNOWN';
+        acc[code] = item._count;
         return acc;
       },
       {} as Record<string, number>,
     );
 
     // Contar citas próximas (futuras)
+    const activeStatusIds = await this.statusService.getStatusIds([
+      'PENDING',
+      'CONFIRMED',
+    ]);
     const upcomingAppointments = await this.prisma.appointments.count({
       where: {
         ScheduledAt: {
           gte: new Date(),
         },
-        Status: {
-          in: ['PENDING', 'CONFIRMED'],
+        StatusId: {
+          in: activeStatusIds,
         },
       },
     });
@@ -193,14 +212,20 @@ export class DashboardService {
    */
   async getAppointmentsByStatus(): Promise<AppointmentsByStatusDto[]> {
     const appointments = await this.prisma.appointments.groupBy({
-      by: ['Status'],
+      by: ['StatusId'],
       _count: true,
     });
+
+    // Obtener todos los estados para mapear IDs a códigos
+    const allStatuses = await this.prisma.appointmentStatuses.findMany({
+      select: { Id: true, Code: true },
+    });
+    const statusIdToCode = new Map(allStatuses.map(s => [s.Id, s.Code]));
 
     const total = appointments.reduce((sum, item) => sum + item._count, 0);
 
     return appointments.map((item) => ({
-      status: item.Status,
+      status: statusIdToCode.get(item.StatusId) || 'UNKNOWN',
       count: item._count,
       percentage: total > 0 ? (item._count / total) * 100 : 0,
     }));
@@ -213,14 +238,14 @@ export class DashboardService {
     const subscriptions = await this.prisma.subscriptions.findMany({
       where: { IsActive: true },
       include: {
-        Plan: true,
+        Plans: true,
       },
     });
 
     // Agrupar por plan
     const planStats = subscriptions.reduce(
       (acc, sub) => {
-        const planName = sub.Plan.Name;
+        const planName = sub.Plans.Name;
         if (!acc[planName]) {
           acc[planName] = {
             count: 0,
@@ -228,7 +253,7 @@ export class DashboardService {
           };
         }
         acc[planName].count++;
-        acc[planName].revenueCents += sub.Plan.PriceCents;
+        acc[planName].revenueCents += sub.Plans.PriceCents;
         return acc;
       },
       {} as Record<string, { count: number; revenueCents: number }>,
@@ -294,10 +319,10 @@ export class DashboardService {
    * Obtener top doctores (por número de citas completadas)
    */
   async getTopDoctors(limit: number = 10): Promise<TopDoctorDto[]> {
+    const completedStatusId = await this.statusService.getStatusId('COMPLETED');
+
     const doctors = await this.prisma.doctorProfiles.findMany({
-      select: {
-        UserId: true,
-        VerificationStatus: true,
+      include: {
         Users: {
           select: {
             FirstName: true,
@@ -305,19 +330,23 @@ export class DashboardService {
             Email: true,
           },
         },
-        Appointments: {
-          select: {
-            Status: true,
+        AvailabilitySlots: {
+          include: {
+            Appointments: {
+              select: {
+                StatusId: true,
+              },
+            },
           },
         },
       },
     });
 
     const doctorsWithStats = doctors.map((doctor) => {
-      const appointments = doctor.Appointments;
+      const appointments = doctor.AvailabilitySlots.flatMap((slot) => slot.Appointments);
       const totalAppointments = appointments.length;
       const completedAppointments = appointments.filter(
-        (a) => a.Status === 'COMPLETED',
+        (a) => a.StatusId === completedStatusId,
       ).length;
 
       return {
@@ -346,7 +375,7 @@ export class DashboardService {
         CreatedAt: 'desc',
       },
       include: {
-        User: {
+        Users: {
           select: {
             FirstName: true,
             LastName1: true,
@@ -359,8 +388,8 @@ export class DashboardService {
     return logs.map((log) => ({
       id: log.Id,
       userId: log.UserId,
-      userName: `${log.User.FirstName} ${log.User.LastName1}`,
-      userRole: log.User.Role,
+      userName: `${log.Users.FirstName} ${log.Users.LastName1}`,
+      userRole: log.Users.Role,
       resourceType: log.ResourceType,
       resourceId: log.ResourceId,
       action: log.Action,
@@ -375,22 +404,22 @@ export class DashboardService {
   private async getSubscriptionStats() {
     const activeSubscriptions = await this.prisma.subscriptions.findMany({
       where: { IsActive: true },
-      include: { Plan: true },
+      include: { Plans: true },
     });
 
     const basicSubs = activeSubscriptions.filter(
-      (s) => s.Plan.Name === 'Basic',
+      (s) => s.Plans.Name === 'Basic',
     );
     const professionalSubs = activeSubscriptions.filter(
-      (s) => s.Plan.Name === 'Professional',
+      (s) => s.Plans.Name === 'Professional',
     );
     const premiumSubs = activeSubscriptions.filter(
-      (s) => s.Plan.Name === 'Premium',
+      (s) => s.Plans.Name === 'Premium',
     );
 
     // Calcular ingresos totales
     const totalRevenueCents = activeSubscriptions.reduce(
-      (sum, sub) => sum + sub.Plan.PriceCents,
+      (sum, sub) => sum + sub.Plans.PriceCents,
       0,
     );
 
@@ -402,7 +431,7 @@ export class DashboardService {
     );
     const revenueThisMonthCents = activeSubscriptions
       .filter((sub) => sub.StartAt >= startOfMonth)
-      .reduce((sum, sub) => sum + sub.Plan.PriceCents, 0);
+      .reduce((sum, sub) => sum + sub.Plans.PriceCents, 0);
 
     return {
       activeSubscriptions: activeSubscriptions.length,
