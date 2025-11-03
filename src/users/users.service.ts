@@ -15,6 +15,7 @@ findById(id: bigint) {
   return this.prisma.users.findUnique({ where: { Id: id } });
 }
   async updateMe(id: number, data: Partial<{
+    FullName?: string;
     FirstName?: string;
     LastName1?: string;
     LastName2?: string;
@@ -29,6 +30,7 @@ findById(id: bigint) {
   }>) {
     // Preparar los datos para actualizar, filtrando undefined
     const updateData: any = {};
+    if (data.FullName !== undefined) updateData.FullName = data.FullName;
     if (data.FirstName !== undefined) updateData.FirstName = data.FirstName;
     if (data.LastName1 !== undefined) updateData.LastName1 = data.LastName1;
     if (data.LastName2 !== undefined) updateData.LastName2 = data.LastName2;

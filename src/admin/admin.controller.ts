@@ -49,14 +49,20 @@ export class AdminController {
    * - Ingresos simulados
    * - Nuevos usuarios (hoy, semana, mes)
    *
+   * @param month - Mes específico para filtrar (1-12, opcional)
+   * @param year - Año específico para filtrar (opcional)
    * @returns Objeto con todas las estadísticas
    *
    * @example
    * GET /admin/dashboard/stats
+   * GET /admin/dashboard/stats?month=3&year=2025
    */
   @Get('dashboard/stats')
-  async getDashboardStats() {
-    return this.dashboardService.getGeneralStats();
+  async getDashboardStats(
+    @Query('month') month?: number,
+    @Query('year') year?: number,
+  ) {
+    return this.dashboardService.getGeneralStats(month, year);
   }
 
   /**

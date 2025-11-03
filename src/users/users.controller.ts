@@ -7,6 +7,10 @@ import { IsOptional, IsString, IsNotEmpty, MinLength } from 'class-validator';
 class UpdateMeDto {
   @IsOptional()
   @IsString()
+  FullName?: string;
+
+  @IsOptional()
+  @IsString()
   FirstName?: string;
 
   @IsOptional()

@@ -36,8 +36,24 @@ export class DashboardService implements OnModuleInit {
    * Obtener estadísticas generales del dashboard
    *
    * Retorna todos los contadores y métricas principales en una sola consulta optimizada.
+   *
+   * @param month - Mes específico para filtrar (1-12, opcional)
+   * @param year - Año específico para filtrar (opcional)
    */
-  async getGeneralStats(): Promise<DashboardStatsDto> {
+  async getGeneralStats(month?: number, year?: number): Promise<DashboardStatsDto> {
+    // Determinar el rango de fechas para el filtro
+    const now = new Date();
+    const targetYear = year || now.getFullYear();
+    const targetMonth = month ? month - 1 : now.getMonth(); // month en JS es 0-indexed
+
+    const startOfMonth = new Date(targetYear, targetMonth, 1);
+    const endOfMonth = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
+
+    // Determinar fechas para "este mes" y "esta semana" si estamos en el mes actual
+    const isCurrentMonth = targetYear === now.getFullYear() && targetMonth === now.getMonth();
+    const todayStart = new Date(now.setHours(0, 0, 0, 0));
+    const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
     // Ejecutar todas las queries en paralelo para mejor rendimiento
     const [
       totalUsers,
@@ -66,50 +82,62 @@ export class DashboardService implements OnModuleInit {
         _count: true,
       }),
 
-      // Citas por estado
+      // Citas por estado (del mes/año seleccionado)
       this.prisma.appointments.groupBy({
         by: ['StatusId'],
         _count: true,
+        where: {
+          CreatedAt: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+        },
       }),
 
       // Total de historiales médicos
       this.prisma.medicalRecords.count(),
 
-      // Historiales médicos este mes
+      // Historiales médicos del mes seleccionado
       this.prisma.medicalRecords.count({
         where: {
           CreatedAt: {
-            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            gte: startOfMonth,
+            lte: endOfMonth,
           },
         },
       }),
 
-      // Estadísticas de suscripciones
-      this.getSubscriptionStats(),
+      // Estadísticas de suscripciones (filtradas por mes/año)
+      this.getSubscriptionStats(startOfMonth, endOfMonth),
 
-      // Nuevos usuarios hoy
+      // Nuevos usuarios hoy (solo si estamos viendo el mes actual)
+      isCurrentMonth
+        ? this.prisma.users.count({
+            where: {
+              CreatedAt: {
+                gte: todayStart,
+              },
+            },
+          })
+        : 0,
+
+      // Nuevos usuarios esta semana (solo si estamos viendo el mes actual)
+      isCurrentMonth
+        ? this.prisma.users.count({
+            where: {
+              CreatedAt: {
+                gte: weekStart,
+              },
+            },
+          })
+        : 0,
+
+      // Nuevos usuarios en el mes seleccionado
       this.prisma.users.count({
         where: {
           CreatedAt: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          },
-        },
-      }),
-
-      // Nuevos usuarios esta semana
-      this.prisma.users.count({
-        where: {
-          CreatedAt: {
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-          },
-        },
-      }),
-
-      // Nuevos usuarios este mes
-      this.prisma.users.count({
-        where: {
-          CreatedAt: {
-            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            gte: startOfMonth,
+            lte: endOfMonth,
           },
         },
       }),
@@ -400,8 +428,14 @@ export class DashboardService implements OnModuleInit {
 
   /**
    * Método auxiliar para obtener estadísticas de suscripciones
+   *
+   * @param startOfMonth - Inicio del rango de fechas para filtrar
+   * @param endOfMonth - Fin del rango de fechas para filtrar
    */
-  private async getSubscriptionStats() {
+  private async getSubscriptionStats(
+    startOfMonth: Date,
+    endOfMonth: Date,
+  ) {
     const activeSubscriptions = await this.prisma.subscriptions.findMany({
       where: { IsActive: true },
       include: { Plans: true },
@@ -423,14 +457,9 @@ export class DashboardService implements OnModuleInit {
       0,
     );
 
-    // Calcular ingresos de este mes (suscripciones creadas este mes)
-    const startOfMonth = new Date(
-      new Date().getFullYear(),
-      new Date().getMonth(),
-      1,
-    );
+    // Calcular ingresos del mes seleccionado (suscripciones creadas en ese mes)
     const revenueThisMonthCents = activeSubscriptions
-      .filter((sub) => sub.StartAt >= startOfMonth)
+      .filter((sub) => sub.StartAt >= startOfMonth && sub.StartAt <= endOfMonth)
       .reduce((sum, sub) => sum + sub.Plans.PriceCents, 0);
 
     return {
