@@ -79,12 +79,15 @@ export class AuthService {
       },
     });
 
-    // Enviar correo de verificación
-    await this.mailService.sendVerificationEmail(
+    // Enviar correo de verificación de forma asíncrona (no bloqueante)
+    this.mailService.sendVerificationEmail(
       user.Email,
       verificationToken,
       user.FirstName,
-    );
+    ).catch(error => {
+      console.error('Error enviando email de verificación (no crítico):', error.message);
+      // El error no se propaga - el usuario ya fue creado exitosamente
+    });
 
     return {
       message: 'Usuario registrado. Por favor verifica tu correo electrónico para activar tu cuenta.',
@@ -199,7 +202,11 @@ export class AuthService {
       },
     });
 
-    await this.mailService.sendPasswordResetEmail(user.Email, resetToken, user.FirstName);
+    // Enviar correo de recuperación de forma asíncrona (no bloqueante)
+    this.mailService.sendPasswordResetEmail(user.Email, resetToken, user.FirstName).catch(error => {
+      console.error('Error enviando email de recuperación (no crítico):', error.message);
+      // El error no se propaga - el token ya fue guardado exitosamente
+    });
 
     return {
       message: 'Si el correo existe, recibirás instrucciones para restablecer tu contraseña.',
