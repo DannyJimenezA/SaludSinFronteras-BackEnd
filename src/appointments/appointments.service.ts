@@ -169,12 +169,26 @@ export class AppointmentsService implements OnModuleInit {
 
   // Obtener citas de HOY del usuario autenticado (doctor o paciente)
   async getToday(userId: bigint, role: 'DOCTOR'|'PATIENT') {
-    // Calculate start and end of today in local timezone
+    // Calculate start and end of today - use UTC to avoid timezone issues
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
-    // Get status IDs
+    // Start of day in UTC
+    const startOfDay = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0, 0, 0, 0
+    ));
+
+    // End of day in UTC
+    const endOfDay = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      23, 59, 59, 999
+    ));
+
+    // Get status IDs - incluir más estados activos
     const activeStatusIds = await this.statusService.getStatusIds(['PENDING', 'CONFIRMED']);
 
     const where: any = {
