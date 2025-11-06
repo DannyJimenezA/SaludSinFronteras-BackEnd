@@ -19,8 +19,8 @@ export class SpecialtiesService {
     });
 
     return specialties.map((specialty) => ({
-      id: specialty.Id.toString(),
-      name: specialty.Name,
+      Id: specialty.Id.toString(),
+      Name: specialty.Name,
     }));
   }
 

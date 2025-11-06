@@ -217,6 +217,7 @@ export class DoctorsService implements OnModuleInit {
       Specialty: specialty,
       Bio: doc.Bio,
       LicenseNumber: doc.LicenseNumber,
+      LicenseCountryId: doc.LicenseCountryId,
       YearsExperience: doc.YearsExperience,
       VerificationStatus: doc.VerificationStatus,
       Specialties: doc.DoctorProfileSpecialties.map(dps => ({

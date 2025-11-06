@@ -7,7 +7,10 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { VerificationService } from './verification.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -18,6 +21,7 @@ import {
 } from '../common/decorators/current-user.decorator';
 import { SubmitVerificationDto } from './dto/submit-verification.dto';
 import { ReviewVerificationDto } from './dto/review-verification.dto';
+import { FilesService } from '../files/files.service';
 
 /**
  * VerificationController - Endpoints para verificación de doctores
@@ -36,7 +40,10 @@ import { ReviewVerificationDto } from './dto/review-verification.dto';
 @Controller('verification')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class VerificationController {
-  constructor(private readonly verificationService: VerificationService) {}
+  constructor(
+    private readonly verificationService: VerificationService,
+    private readonly filesService: FilesService,
+  ) {}
 
   /**
    * Doctor envía documentos de certificación
@@ -59,6 +66,40 @@ export class VerificationController {
    *   "Notes": "Licencia médica vigente hasta 2030"
    * }
    */
+  /**
+   * Doctor sube un documento de verificación
+   *
+   * Sube un archivo (PDF, JPG, PNG) y retorna la URL para usarla
+   * en el endpoint /verification/submit
+   *
+   * @param user - Doctor autenticado
+   * @param file - Archivo a subir
+   * @returns URL del archivo subido
+   *
+   * @example
+   * POST /verification/upload-document
+   * Authorization: Bearer {doctorToken}
+   * Content-Type: multipart/form-data
+   * Body: file (FormData)
+   *
+   * Response: {
+   *   "url": "uploads/verification/doc-12345.pdf"
+   * }
+   */
+  @Post('upload-document')
+  @Roles('DOCTOR')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDocument(
+    @CurrentUser() user: JwtUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const savedFile = await this.filesService.save(BigInt(user.sub), file);
+    return {
+      url: savedFile.StorageUrl,
+      fileId: savedFile.Id.toString(),
+    };
+  }
+
   @Post('submit')
   @Roles('DOCTOR')
   @HttpCode(HttpStatus.OK)

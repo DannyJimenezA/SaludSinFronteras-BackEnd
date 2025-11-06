@@ -27,4 +27,22 @@ export class ConversationsController {
   get(@Param('id') id: string, @Req() req: any) {
     return this.svc.getOne(BigInt(req.user.sub), BigInt(id));
   }
+
+  // Obtiene o crea una conversación única con un doctor específico
+  @Roles('PATIENT')
+  @Post('with-doctor/:doctorId')
+  ensureWithDoctor(@Param('doctorId') doctorId: string, @Req() req: any) {
+    const patientUserId = BigInt(req.user.sub);
+    const doctorUserId = BigInt(doctorId);
+    return this.svc.ensureWithDoctor(patientUserId, doctorUserId);
+  }
+
+  // Obtiene o crea una conversación única con un paciente específico
+  @Roles('DOCTOR')
+  @Post('with-patient/:patientId')
+  ensureWithPatient(@Param('patientId') patientId: string, @Req() req: any) {
+    const doctorUserId = BigInt(req.user.sub);
+    const patientUserId = BigInt(patientId);
+    return this.svc.ensureWithPatient(doctorUserId, patientUserId);
+  }
 }

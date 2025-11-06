@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { VerificationService } from './verification.service';
 import { VerificationController } from './verification.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { FilesModule } from '../files/files.module';
 
 /**
  * VerificationModule
@@ -23,7 +24,7 @@ import { PrismaModule } from '../prisma/prisma.module';
  * - POST /verification/review/:doctorId (ADMIN)
  */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, FilesModule],
   controllers: [VerificationController],
   providers: [VerificationService],
   exports: [VerificationService],
