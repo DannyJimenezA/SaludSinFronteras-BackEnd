@@ -54,8 +54,9 @@ async function bootstrap() {
   // 🟢 1. Habilitar CORS antes de Helmet
   app.enableCors({
     origin: [
-      'http://localhost:5173',     // Frontend local
-      'http://127.0.0.1:5173',     // Alternativa si Vite usa IP
+      'http://localhost:5173',               // Frontend local
+      'http://127.0.0.1:5173',               // Alternativa si Vite usa IP
+      'https://salud-sin-fronteras.vercel.app',  // Frontend en Vercel
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
