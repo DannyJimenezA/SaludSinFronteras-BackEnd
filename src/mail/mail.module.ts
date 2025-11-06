@@ -14,6 +14,12 @@ import { MailService } from './mail.service';
           user: process.env.MAIL_USER,
           pass: process.env.MAIL_PASSWORD,
         },
+        tls: {
+          rejectUnauthorized: false, // Permitir certificados auto-firmados en desarrollo
+        },
+        connectionTimeout: 30000, // 30 segundos
+        greetingTimeout: 30000, // 30 segundos
+        socketTimeout: 60000, // 60 segundos
       },
       defaults: {
         from: `"Salud Sin Fronteras" <${process.env.MAIL_FROM}>`,

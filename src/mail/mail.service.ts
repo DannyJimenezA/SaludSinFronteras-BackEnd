@@ -1,15 +1,23 @@
 // src/mail/mail.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
+
   constructor(private mailerService: MailerService) {}
 
   async sendVerificationEmail(email: string, token: string, firstName: string) {
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
 
-    await this.mailerService.sendMail({
+    try {
+      this.logger.log(`Intentando enviar email de verificación a: ${email}`);
+      this.logger.log(`MAIL_HOST: ${process.env.MAIL_HOST}`);
+      this.logger.log(`MAIL_USER: ${process.env.MAIL_USER}`);
+      this.logger.log(`FRONTEND_URL: ${process.env.FRONTEND_URL}`);
+
+      await this.mailerService.sendMail({
       to: email,
       subject: 'Activa tu cuenta - Salud Sin Fronteras',
       html: `
@@ -48,7 +56,13 @@ export class MailService {
         </body>
         </html>
       `,
-    });
+      });
+
+      this.logger.log(`Email de verificación enviado exitosamente a: ${email}`);
+    } catch (error) {
+      this.logger.error(`Error al enviar email de verificación a ${email}:`, error);
+      throw error;
+    }
   }
 
   async sendPasswordResetEmail(email: string, token: string, firstName: string) {
