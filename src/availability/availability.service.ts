@@ -54,9 +54,31 @@ export class AvailabilityService implements OnModuleInit {
     const where: any = { DoctorUserId: doctorUserId };
     if (from) where.StartAt = { gte: toUtcDate(from) };
     if (to)   where.EndAt   = { lte: toUtcDate(to) };
-    return this.prisma.availabilitySlots.findMany({
+
+    const slots = await this.prisma.availabilitySlots.findMany({
       where,
       orderBy: [{ StartAt: 'asc' }],
+      include: {
+        Appointments: {
+          include: {
+            AppointmentStatuses: true,
+          },
+        },
+      },
+    });
+
+    // Transformar para incluir IsBooked y AppointmentStatus
+    return slots.map((slot) => {
+      const activeAppointment = slot.Appointments.find(
+        (appt) => appt.AppointmentStatuses.Code !== 'CANCELLED' && appt.AppointmentStatuses.Code !== 'NO_SHOW'
+      );
+
+      return {
+        ...slot,
+        IsBooked: !!activeAppointment,
+        AppointmentStatus: activeAppointment?.AppointmentStatuses?.Code || null,
+        Appointments: undefined, // No enviar todas las citas al frontend
+      };
     });
   }
 
